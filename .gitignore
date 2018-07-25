@@ -1,0 +1,11 @@
+bin
+intermediate
+lib
+
+.vs
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+
+embedded_shaders.h
