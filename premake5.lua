@@ -1,6 +1,19 @@
 solution "jammy"
-	platforms { "Win64" }
+	platforms { "Win64", "Linux64" }
 	configurations { "Debug", "Development", "Standalone" }
+
+project "bin2h"
+	location "src"
+	language "C"
+	kind "ConsoleApp"
+	targetname "bin2h"
+	architecture "x86_64"
+	targetdir "%{sln.location}/utils"
+	objdir "%{sln.location}/intermediate/%{prj.name}/%{cfg.shortname}"
+
+	files {
+		"%{prj.location}/bin2h/bin2h.c",
+	}
 
 project "lua"
 	location "src"
@@ -23,6 +36,7 @@ project "lua"
 
 	defines {
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
+		"LUA_USE_MKSTEMP",
 		"WIN32_LEAN_AND_MEAN",
 		"_CRT_SECURE_NO_WARNINGS",
 	}
@@ -95,6 +109,8 @@ project "jammy"
 		"%{prj.location}/jammy/**.h",
 		"%{prj.location}/jammy/**.c",
 		"%{prj.location}/jammy/**.hlsl",
+		"%{prj.location}/jammy/**.vs",
+		"%{prj.location}/jammy/**.fs",
 	}
 
 	excludes {
@@ -104,15 +120,12 @@ project "jammy"
 	includedirs {
 		"%{prj.location}",
 		"%{prj.location}/lua",
-		"%{prj.location}/freetype",
-	}
-
-	libdirs {
-		"%{sln.location}/lib/freetype/%{cfg.shortname}",
+		"/usr/local/include/freetype2",
 	}
 
 	defines {
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
+		"LUA_USE_MKSTEMP",
 		"_CRT_SECURE_NO_WARNINGS",
 		"WIN32_LEAN_AND_MEAN",
 		"RMT_ENABLED=0",
@@ -123,14 +136,13 @@ project "jammy"
 		"FatalWarnings",
 	}
 
-	fxc = '"C:/Program Files (x86)/Windows Kits/10/bin/x64/fxc.exe"'
-	bin2h = '"%{sln.location}/utils/bin2h.exe"'
-
 	prebuildcommands {
 		'{DELETE} ' .. embedShaderPath,
 	}
 
-	filter { "files:**.hlsl" }
+	filter { "platforms:Win64", "files:**.hlsl" }
+		local fxc = '"C:/Program Files (x86)/Windows Kits/10/bin/x64/fxc.exe"'
+		local bin2h = '"%{sln.location}/utils/bin2h.exe"'
 		local vsPath = '%{cfg.objdir}/shader_%{file.basename}_vs.bin'
 		local psPath = '%{cfg.objdir}/shader_%{file.basename}_ps.bin'
 		buildmessage 'Compiling %{file.relpath}'
@@ -146,8 +158,34 @@ project "jammy"
 			embedShaderPath,
 		}
 
+	filter { "files:**.vs" }
+		local bin2h = '%{sln.location}/utils/bin2h'
+		local vsPath = '%{file.path}'
+		local embedShaderPath = '%{prj.location}/jammy/shaders/opengl/%{file.basename}.vs.h'
+		buildmessage 'Compiling %{file.relpath}'
+		buildcommands { 
+			bin2h .. ' ' .. vsPath .. ' ' .. embedShaderPath .. ' jm_embedded_vs_%{file.basename} --nullterminate',
+		}
+		buildoutputs { 
+			embedShaderPath,
+		}
+
+	filter { "files:**.fs" }
+		local bin2h = '%{sln.location}/utils/bin2h'
+		local fsPath = '%{file.path}'
+		local embedShaderPath = '%{prj.location}/jammy/shaders/opengl/%{file.basename}.fs.h'
+		buildmessage 'Compiling %{file.relpath}'
+		buildcommands { 
+			bin2h .. ' ' .. fsPath .. ' ' .. embedShaderPath .. ' jm_embedded_fs_%{file.basename} --nullterminate',
+		}
+		buildoutputs { 
+			embedShaderPath,
+		}
+
 	filter { "platforms:Win64" }
 		defines { "JM_WINDOWS" }
+	filter { "platforms:Linux64" }
+		defines { "JM_LINUX" }
 
 	filter { "configurations:Debug" }
 		targetsuffix "_debug"
@@ -175,6 +213,8 @@ project "jammy"
 
 	filter { "configurations:not Standalone" }
 		kind "ConsoleApp"
+
+	filter { "platforms:Win64" }
 		links {
 			"lua",
 			"chipmunk",
@@ -187,4 +227,16 @@ project "jammy"
 			"dxguid",
 			"dsound",
 			"freetype",
+		}
+
+	filter { "platforms:Linux64" }
+		buildoptions { "-Wfatal-errors" }
+		links {
+			"lua",
+			"chipmunk",
+			"freetype",
+			"X11",
+			"GL",
+			"GLEW",
+			"m",
 		}

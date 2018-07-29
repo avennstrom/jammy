@@ -2,14 +2,14 @@
 #include <jammy/texture.h>
 #include <jammy/font.h>
 #include <jammy/effect.h>
+#include <jammy/math.h>
+#include <jammy/remotery/Remotery.h>
+#include <jammy/color.h>
 
 #include <lua.h>
 #include <lauxlib.h>
 
-#include <jammy/remotery/Remotery.h>
-#include <jammy/color.h>
-
-#define clamp(val, lower, upper) (max(lower, min(upper, val)))
+#include <string.h>
 
 static int __drawText(lua_State* L)
 {
@@ -54,16 +54,16 @@ static int __drawText(lua_State* L)
 		}
 
 		lua_rawgeti(L, -1, 1);
-		const float r = clamp(lua_tonumber(L, -1), 0, 1);
+		const float r = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 2);
-		const float g = clamp(lua_tonumber(L, -1), 0, 1);
+		const float g = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 3);
-		const float b = clamp(lua_tonumber(L, -1), 0, 1);
+		const float b = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 4);
-		const float a = lua_isnil(L, -1) ? 1.0f : clamp(lua_tonumber(L, -1), 0, 1);
+		const float a = lua_isnil(L, -1) ? 1.0f : jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 
 		cmd->color = jm_pack_color32_rgba_f32(r, g, b, a);
@@ -264,16 +264,16 @@ static int __draw(lua_State* L)
 		}
 
 		lua_rawgeti(L, -1, 1);
-		const float r = clamp(lua_tonumber(L, -1), 0, 1);
+		const float r = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 2);
-		const float g = clamp(lua_tonumber(L, -1), 0, 1);
+		const float g = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 3);
-		const float b = clamp(lua_tonumber(L, -1), 0, 1);
+		const float b = jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 		lua_rawgeti(L, -1, 4);
-		const float a = lua_isnil(L, -1) ? 1.0f : clamp(lua_tonumber(L, -1), 0, 1);
+		const float a = lua_isnil(L, -1) ? 1.0f : jm_clamp(lua_tonumber(L, -1), 0, 1);
 		lua_pop(L, 1);
 
 		cmd->color = jm_pack_color32_rgba_f32(r, g, b, a);

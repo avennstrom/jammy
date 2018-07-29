@@ -1,4 +1,6 @@
 #pragma once
 
+#include <lua.h>
+
 void jm_player_controller_luaopen(
-	struct lua_State* L);
+	lua_State* L);

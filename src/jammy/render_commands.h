@@ -5,18 +5,16 @@
 #include <jammy/effect.h>
 #include <jammy/renderer.h>
 
-#include <d3d11.h>
-
 #include <float.h>
 
 #define JM_DECLARE_RENDER_COMMAND(CommandName) \
-	void __##CommandName(void*, const void*); \
 	typedef struct CommandName CommandName; \
+	void __##CommandName(jm_draw_context*, const struct CommandName*); \
 	struct CommandName
 
 typedef struct jm_draw_context
 {
-	ID3D11DeviceContext* d3dctx;
+	void* platformContext;
 
 	uint32_t vertexBufferOffset;
 	uint32_t indexBufferOffset;
@@ -26,7 +24,7 @@ typedef void(*jm_render_command_dispatcher)(jm_draw_context*, const void*);
 
 void jm_draw_context_begin(
 	jm_draw_context* ctx,
-	ID3D11DeviceContext* d3dctx);
+	void* platformContext);
 
 JM_DECLARE_RENDER_COMMAND(jm_render_command_draw_text)
 {
@@ -41,7 +39,7 @@ JM_DECLARE_RENDER_COMMAND(jm_render_command_draw_text)
 	uint32_t rangeEnd;
 };
 
-inline void jm_render_command_draw_text_init(
+__always_inline void jm_render_command_draw_text_init(
 	jm_render_command_draw_text* cmd)
 {
 	cmd->x = 0.0f;
@@ -55,16 +53,6 @@ inline void jm_render_command_draw_text_init(
 	cmd->rangeStart = 0;
 	cmd->rangeEnd = UINT32_MAX;
 }
-
-typedef struct jm_vertex
-{
-	float x, y;
-} jm_vertex;
-
-typedef struct jm_texcoord
-{
-	float u, v;
-} jm_texcoord;
 
 JM_DECLARE_RENDER_COMMAND(jm_render_command_draw)
 {
@@ -80,7 +68,7 @@ JM_DECLARE_RENDER_COMMAND(jm_render_command_draw)
 	jm_sampler_state samplerState;
 };
 
-inline void jm_render_command_draw_init(
+__always_inline void jm_render_command_draw_init(
 	jm_render_command_draw* cmd)
 {
 	cmd->vertexCount = 0;

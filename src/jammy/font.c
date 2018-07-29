@@ -4,11 +4,14 @@
 #include <jammy/file.h>
 #include <jammy/assert.h>
 #include <jammy/renderer.h>
+#include <jammy/math.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#if defined(JM_WINDOWS)
 #include <d3d11.h>
+#endif
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -57,7 +60,7 @@ jm_font_handle jm_load_font(
 {
 	const uint64_t size64 = size;
 	const uint64_t key = jm_fnv(path) ^ (size64 << 32 | size64);
-	const uint64_t* find = bsearch(&key, g_fonts.keys, g_fonts.count, sizeof(uint64_t), key_search_compare);
+	const uint64_t* find = bsearch(&key, g_fonts.keys, g_fonts.count, sizeof(uint64_t), (__compar_fn_t)key_search_compare);
 	if (find)
 	{
 		return (jm_font_handle)(find - g_fonts.keys);
@@ -100,9 +103,9 @@ jm_font_handle jm_load_font(
 		FT_Error error = FT_Load_Glyph(face, gindex, FT_LOAD_BITMAP_METRICS_ONLY);
 		jm_assert(error == 0);
 
-		maxGlyphWidth = max(maxGlyphWidth, face->glyph->bitmap.width);
-		maxGlyphRows = max(maxGlyphRows, face->glyph->bitmap.rows);
-		maxCharcode = max(maxCharcode, charcode);
+		maxGlyphWidth = jm_max(maxGlyphWidth, face->glyph->bitmap.width);
+		maxGlyphRows = jm_max(maxGlyphRows, face->glyph->bitmap.rows);
+		maxCharcode = jm_max(maxCharcode, charcode);
 		++glyphCount;
 
 		charcode = FT_Get_Next_Char(face, charcode, &gindex);
@@ -167,6 +170,7 @@ jm_font_handle jm_load_font(
 	}
 
 	// todo - cross platform
+#if defined(JM_WINDOWS)
 	D3D11_TEXTURE2D_DESC desc;
 	desc.ArraySize = 1;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -191,6 +195,7 @@ jm_font_handle jm_load_font(
 	d3ddev->lpVtbl->CreateTexture2D(d3ddev, &desc, &sd, &texture);
 	d3ddev->lpVtbl->CreateShaderResourceView(d3ddev, (ID3D11Resource*)texture, NULL, &fontInfo.srv);
 	texture->lpVtbl->Release(texture);
+#endif
 
 	free(pixels);
 
@@ -238,4 +243,103 @@ float jm_font_measure_text_range(
 		++text;
 	}
 	return textWidth;
+}
+
+void jm_font_get_text_vertices(
+	jm_font_handle fontHandle,
+	const char* text,
+	float topLeftX,
+	float topLeftY,
+	float width,
+	uint32_t rangeStart,
+	uint32_t rangeEnd,
+	float textScale,
+	jm_vertex* dstPosition,
+	jm_texcoord* dstTexcoord,
+	uint16_t* dstIndex,
+	uint32_t* outIndexCount)
+{
+	const jm_font_info* fontInfo = jm_font_get_info(fontHandle);
+	const float lineHeight = fontInfo->height; //* cmd->lineSpacingMultiplier;
+	const jm_glyph_info* glyphInfo = fontInfo->glyphs;
+
+	float penX = 0.0f;
+	float penY = 0.0f;
+
+	uint32_t indexCount = 0;
+	uint32_t dstI = 0;
+
+	const size_t textLength = strlen(text);
+	for (uint32_t i = 0; i < textLength; ++i)
+	{
+		const char charcode = text[i];
+		const char prevCharcode = (i > 0) ? text[i - 1] : '\0';
+
+		const bool potentionalBreakPoint = (prevCharcode == ' ');
+		bool shouldBreak = (charcode == '\n');
+		if (!shouldBreak && potentionalBreakPoint)
+		{
+			const char* wordStart = text + i;
+			const char* wordEnd = strchr(wordStart, ' ');
+			if (wordEnd == NULL)
+			{
+				wordEnd = wordStart + strlen(wordStart);
+			}
+
+			const float wordWidth = jm_font_measure_text_range(fontHandle, wordStart, wordEnd);
+			if (penX + wordWidth > topLeftX + width)
+			{
+				shouldBreak = true;
+			}
+		}
+
+		if (shouldBreak)
+		{
+			penX = topLeftX;
+			penY += lineHeight;
+		}
+
+		const jm_glyph_info* glyph = &glyphInfo[charcode];
+		if (glyph->hasBitmap && i >= rangeStart && i < rangeEnd)
+		{
+			const float x = penX + glyph->bitmap_left * textScale;
+			const float y = penY - glyph->bitmap_top * textScale;
+			const float w = glyph->width * textScale;
+			const float h = glyph->height * textScale;
+
+			dstPosition[0].x = x;
+			dstPosition[0].y = y;
+			dstPosition[1].x = x + w;
+			dstPosition[1].y = y;
+			dstPosition[2].x = x;
+			dstPosition[2].y = y + h;
+			dstPosition[3].x = x + w;
+			dstPosition[3].y = y + h;
+
+			dstTexcoord[0].u = glyph->u0;
+			dstTexcoord[0].v = glyph->v0;
+			dstTexcoord[1].u = glyph->u1;
+			dstTexcoord[1].v = glyph->v0;
+			dstTexcoord[2].u = glyph->u0;
+			dstTexcoord[2].v = glyph->v1;
+			dstTexcoord[3].u = glyph->u1;
+			dstTexcoord[3].v = glyph->v1;
+
+			dstIndex[0] = dstI + 0;
+			dstIndex[1] = dstI + 1;
+			dstIndex[2] = dstI + 2;
+			dstIndex[3] = dstI + 3;
+			dstIndex[4] = UINT16_MAX;
+
+			dstI += 4;
+			dstPosition += 4;
+			dstTexcoord += 4;
+			dstIndex += 5;
+			indexCount += 5;
+		}
+
+		penX += glyph->advance_x * textScale;
+	}
+
+	*outIndexCount = indexCount;
 }

@@ -3,9 +3,20 @@ intermediate
 lib
 
 .vs
+.vscode
 *.sln
 *.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 
 embedded_shaders.h
+
+# OpenGL shaders
+*.vs.h
+*.fs.h
+
+*.make
+Makefile
+premake5
+
+utils/bin2h

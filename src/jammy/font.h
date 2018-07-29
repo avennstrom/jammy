@@ -1,5 +1,7 @@
 #pragma once
 
+#include <jammy/render_types.h>
+
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -21,7 +23,7 @@ typedef struct jm_glyph_info
 
 typedef struct jm_font_info
 {
-	struct ID3D11ShaderResourceView* srv;
+	void* srv;
 	jm_glyph_info* glyphs;
 	float height;
 } jm_font_info;
@@ -43,3 +45,17 @@ float jm_font_measure_text_range(
 
 const jm_font_info* jm_font_get_info(
 	jm_font_handle fontHandle);
+
+void jm_font_get_text_vertices(
+	jm_font_handle fontHandle,
+	const char* text,
+	float topLeftX,
+	float topLeftY,
+	float width,
+	uint32_t rangeStart,
+	uint32_t rangeEnd,
+	float textScale,
+	jm_vertex* dstPosition,
+	jm_texcoord* dstTexcoord,
+	uint16_t* dstIndex,
+	uint32_t* outIndexCount);

@@ -1,7 +1,7 @@
 #include "effect.h"
 #include <jammy/remotery/Remotery.h>
 
-#include <intrin.h>
+#include <xmmintrin.h>
 
 #define MAX_EFFECTS 512
 #define MAX_EFFECT_INSTANCES 1024

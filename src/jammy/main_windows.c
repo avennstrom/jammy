@@ -1,3 +1,4 @@
+#if defined(JM_WINDOWS)
 #include <jammy/command_buffer.h>
 #include <jammy/file.h>
 #include <jammy/renderer.h>
@@ -7,7 +8,6 @@
 #include <jammy/assert.h>
 #include <jammy/player_controller.h>
 #include <jammy/remotery/Remotery.h>
-
 #include <jammy/lua/lua.h>
 
 #include <lua.h>
@@ -310,11 +310,10 @@ int main(int argc, char** argv)
 		lua_pushliteral(L, "deltaTime");
 		lua_pushnumber(L, (float)TICK_RATE);
 		lua_settable(L, -3);
+		lua_pop(L, 1);
 
 		// set the current command buffer
 		jm_set_current_command_buffer(&commandBuffers[bufferIndex]);
-
-		lua_pop(L, 1);
 
 		// begin render command recording
 		jm_command_buffer_begin(&commandBuffers[bufferIndex]);
@@ -574,3 +573,4 @@ static DWORD jm_render_thread_proc(
 
 	return 0;
 }
+#endif

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <inttypes.h>
 
 #define JM_EFFECT_INVALID ((jm_effect)-1)

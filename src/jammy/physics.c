@@ -7,6 +7,8 @@
 
 #include <chipmunk/chipmunk.h>
 
+#include <string.h>
+
 typedef struct jm_physics
 {
 	struct cpSpace* space;

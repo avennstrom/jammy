@@ -7,7 +7,7 @@
 #include <jammy/font.h>
 
 #define JM_COMMAND_BUFFER_PUSH(CommandBuffer, CommandName) \
-	jm_command_buffer_push(CommandBuffer, sizeof(CommandName), __##CommandName)
+	jm_command_buffer_push(CommandBuffer, sizeof(CommandName), (jm_render_command_dispatcher)__##CommandName)
 
 typedef struct jm_command_buffer
 {

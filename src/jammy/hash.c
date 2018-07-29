@@ -6,7 +6,7 @@ uint64_t jm_fnv(
 	const char* str)
 {
 	jm_assert(str);
-	uint64_t hash = 14695981039346656037;
+	uint64_t hash = 14695981039346656037ULL;
 	while (*str != '\0')
 	{
 		hash *= 1099511628211;

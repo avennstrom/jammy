@@ -1,5 +1,7 @@
 #pragma once
 
+#include <jammy/render_types.h>
+
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -22,7 +24,7 @@ jm_texture_handle jm_load_texture(
 void jm_texture_reload(
 	const char* path);
 
-struct ID3D11ShaderResourceView* jm_texture_get_srv(
+jm_texture_resource jm_texture_get_resource(
 	jm_texture_handle textureHandle);
 
 const jm_texture_info* jm_texture_get_info(

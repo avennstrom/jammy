@@ -18,8 +18,7 @@ typedef struct jm_textures
 {
 	size_t count;
 	uint64_t* keys;
-	ID3D11Texture2D** textures;
-	ID3D11ShaderResourceView** textureSRVs;
+	jm_texture_resource* resources;
 	jm_texture_info* textureInfo;
 } jm_textures;
 
@@ -29,8 +28,7 @@ int jm_textures_init()
 {
 	g_textures.count = 0;
 	g_textures.keys = calloc(MAX_TEXTURES, sizeof(uint64_t));
-	g_textures.textures = calloc(MAX_TEXTURES, sizeof(void*));
-	g_textures.textureSRVs = calloc(MAX_TEXTURES, sizeof(void*));
+	g_textures.resources = calloc(MAX_TEXTURES, sizeof(jm_texture_resource));
 	g_textures.textureInfo = calloc(MAX_TEXTURES, sizeof(jm_texture_info));
 	return 0;
 }
@@ -40,38 +38,62 @@ static bool try_load_bmp(
 	void** outPixels,
 	uint32_t* outWidth,
 	uint32_t* outHeight,
-	DXGI_FORMAT* outFormat)
+	uint32_t* outFormat)
 {
 	FILE* f = fopen(path, "r");
 
-	BITMAPFILEHEADER bmpHeader;
+	typedef struct bmp_file_header
+	{
+		uint16_t type;
+		uint32_t size;
+		uint16_t reserved1;
+		uint16_t reserved2;
+		uint32_t offBits;
+	} bmp_file_header;
+
+	typedef struct bmp_info_header
+	{
+		uint32_t size;
+		uint32_t width;
+		uint32_t height;
+		uint16_t planes;
+		uint16_t bitCount;
+		uint32_t compression;
+		uint32_t imageSize;
+		uint32_t xPelsPerMeter;
+		uint32_t yPelsPerMeter;
+		uint32_t clrUsed;
+		uint32_t clrImportant;
+	} bmp_info_header;
+
+	bmp_file_header bmpHeader;
 	fread(&bmpHeader, sizeof(bmpHeader), 1, f);
 
-	if (bmpHeader.bfType != 0x4D42)
+	if (bmpHeader.type != 0x4D42)
 	{
 		// not a bmp file
 		return false;
 	}
 
-	BITMAPINFOHEADER bmpInfoHeader;
+	bmp_info_header bmpInfoHeader;
 	fread(&bmpInfoHeader, sizeof(bmpInfoHeader), 1, f);
 
-	uint8_t* srcPixels = malloc(bmpInfoHeader.biSizeImage);
-	fread(srcPixels, 1, bmpInfoHeader.biSizeImage, f);
+	uint8_t* srcPixels = malloc(bmpInfoHeader.imageSize);
+	fread(srcPixels, 1, bmpInfoHeader.imageSize, f);
 	fclose(f);
 
-	uint8_t* pixels = malloc(bmpInfoHeader.biSizeImage);
+	uint8_t* pixels = malloc(bmpInfoHeader.imageSize);
 
 	// flip image upside down
-	const size_t bytesPerRow = bmpInfoHeader.biWidth * 4;
-	for (size_t dstRow = 0; dstRow < bmpInfoHeader.biHeight; ++dstRow)
+	const size_t bytesPerRow = bmpInfoHeader.width * 4;
+	for (size_t dstRow = 0; dstRow < bmpInfoHeader.height; ++dstRow)
 	{
-		const size_t srcRow = bmpInfoHeader.biHeight - dstRow - 1;
+		const size_t srcRow = bmpInfoHeader.height - dstRow - 1;
 		memcpy(pixels + dstRow * bytesPerRow, srcPixels + srcRow * bytesPerRow, bytesPerRow);
 	}
 
 	// swizzle bgr to rgb
-	for (size_t i = 0; i < (bmpInfoHeader.biSizeImage / 4 * 4); i += 4)
+	for (size_t i = 0; i < (bmpInfoHeader.imageSize / 4 * 4); i += 4)
 	{
 		const uint8_t r = pixels[i];
 		const uint8_t b = pixels[i + 2];
@@ -82,9 +104,9 @@ static bool try_load_bmp(
 	free(srcPixels);
 
 	*outPixels = pixels;
-	*outWidth = bmpInfoHeader.biWidth;
-	*outHeight = bmpInfoHeader.biHeight;
-	*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	*outWidth = bmpInfoHeader.width;
+	*outHeight = bmpInfoHeader.height;
+	//*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	return true;
 }
 
@@ -93,7 +115,7 @@ static bool try_load_png(
 	void** outPixels,
 	uint32_t* outWidth,
 	uint32_t* outHeight,
-	DXGI_FORMAT* outFormat)
+	uint32_t* outFormat)
 {
 	unsigned error = lodepng_decode32_file((uint8_t**)outPixels, outWidth, outHeight, path);
 
@@ -103,7 +125,7 @@ static bool try_load_png(
 		return false;
 	}
 
-	*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	return true;
 }
 
@@ -112,7 +134,7 @@ static bool jm_load_image_pixels(
 	void** outPixels,
 	uint32_t* outWidth, 
 	uint32_t* outHeight,
-	DXGI_FORMAT* outFormat)
+	uint32_t* outFormat)
 {
 	if (try_load_bmp(path, outPixels, outWidth, outHeight, outFormat))
 	{
@@ -132,14 +154,18 @@ static int key_search_compare(const uint64_t* a, const uint64_t* b)
 	if (*a <  *b) return -1;
 	if (*a == *b) return 0;
 	if (*a >  *b) return 1;
+#if defined(_MSC_VER)
 	__assume(0);
+#elif defined(__GNUC__)
+	__builtin_unreachable();
+#endif
 }
 
 jm_texture_handle jm_load_texture(
 	const char* path)
 {
 	const uint64_t key = jm_fnv(path);
-	const uint64_t* find = bsearch(&key, g_textures.keys, g_textures.count, sizeof(uint64_t), key_search_compare);
+	const uint64_t* find = bsearch(&key, g_textures.keys, g_textures.count, sizeof(uint64_t), (__compar_fn_t)key_search_compare);
 	if (find)
 	{
 		return (jm_texture_handle)(find - g_textures.keys);
@@ -156,7 +182,7 @@ jm_texture_handle jm_load_texture(
 	
 	void* pixels;
 	uint32_t width, height;
-	DXGI_FORMAT format;
+	uint32_t format;
 	if (!jm_load_image_pixels(path, &pixels, &width, &height, &format))
 	{
 		return JM_TEXTURE_HANDLE_INVALID;
@@ -173,6 +199,15 @@ jm_texture_handle jm_load_texture(
 		}
 	}
 
+	jm_texture_resource_desc resourceDesc;
+	resourceDesc.width = width;
+	resourceDesc.height = height;
+	resourceDesc.data = pixels;
+
+	jm_texture_resource resource;
+	jm_renderer_create_texture_resource(&resourceDesc, &resource);
+
+#if defined(JM_WINDOWS)
 	D3D11_TEXTURE2D_DESC textureDesc;
 	textureDesc.ArraySize = 1;
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -194,15 +229,16 @@ jm_texture_handle jm_load_texture(
 	ID3D11Device* d3ddevice = jm_renderer_get_device();
 
 	ID3D11Texture2D* texture;
-	ID3D11ShaderResourceView* srv;
 	d3ddevice->lpVtbl->CreateTexture2D(d3ddevice, &textureDesc, &textureData, &texture);
-	d3ddevice->lpVtbl->CreateShaderResourceView(d3ddevice, (ID3D11Resource*)texture, NULL, &srv);
-
-	free(pixels);
+	d3ddevice->lpVtbl->CreateShaderResourceView(d3ddevice, (ID3D11Resource*)texture, NULL, &resource);
 
 #if defined(JM_DEBUG)
 	texture->lpVtbl->SetPrivateData(texture, &WKPDID_D3DDebugObjectName, (UINT)strlen(path), path);
 #endif
+	texture->lpVtbl->Release(texture);
+#endif
+
+	free(pixels);
 
 	jm_texture_info textureInfo;
 	textureInfo.width = width;
@@ -210,8 +246,7 @@ jm_texture_handle jm_load_texture(
 	textureInfo.isSemitransparent = isSemitransparent;
 
 	g_textures.textureInfo[textureHandle] = textureInfo;
-	g_textures.textures[textureHandle] = texture;
-	g_textures.textureSRVs[textureHandle] = srv;
+	g_textures.resources[textureHandle] = resource;
 	
 	return textureHandle;
 }
@@ -224,11 +259,11 @@ void jm_texture_reload(
 
 }
 
-ID3D11ShaderResourceView* jm_texture_get_srv(
+jm_texture_resource jm_texture_get_resource(
 	jm_texture_handle textureHandle)
 {
 	jm_assert(textureHandle != JM_TEXTURE_HANDLE_INVALID);
-	return g_textures.textureSRVs[textureHandle];
+	return g_textures.resources[textureHandle];
 }
 
 const jm_texture_info* jm_texture_get_info(
