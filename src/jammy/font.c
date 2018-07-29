@@ -60,7 +60,7 @@ jm_font_handle jm_load_font(
 {
 	const uint64_t size64 = size;
 	const uint64_t key = jm_fnv(path) ^ (size64 << 32 | size64);
-	const uint64_t* find = bsearch(&key, g_fonts.keys, g_fonts.count, sizeof(uint64_t), (__compar_fn_t)key_search_compare);
+	const uint64_t* find = bsearch(&key, g_fonts.keys, g_fonts.count, sizeof(uint64_t), key_search_compare);
 	if (find)
 	{
 		return (jm_font_handle)(find - g_fonts.keys);
@@ -169,33 +169,13 @@ jm_font_handle jm_load_font(
 		++i;
 	}
 
-	// todo - cross platform
-#if defined(JM_WINDOWS)
-	D3D11_TEXTURE2D_DESC desc;
-	desc.ArraySize = 1;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	desc.CPUAccessFlags = 0;
-	desc.Format = DXGI_FORMAT_R8_UNORM;
-	desc.MipLevels = 1;
-	desc.MiscFlags = 0;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-	desc.Usage = D3D11_USAGE_IMMUTABLE;
-	desc.Width = maxGlyphWidth * glyphGridWidth;
-	desc.Height = maxGlyphRows * glyphGridHeight;
-
-	D3D11_SUBRESOURCE_DATA sd;
-	sd.pSysMem = pixels;
-	sd.SysMemPitch = glyphBitmapRowPitch;
-	sd.SysMemSlicePitch = 0;
-
-	ID3D11Device* d3ddev = jm_renderer_get_device();
-
-	ID3D11Texture2D* texture;
-	d3ddev->lpVtbl->CreateTexture2D(d3ddev, &desc, &sd, &texture);
-	d3ddev->lpVtbl->CreateShaderResourceView(d3ddev, (ID3D11Resource*)texture, NULL, &fontInfo.srv);
-	texture->lpVtbl->Release(texture);
-#endif
+	jm_texture_resource_desc textureDesc;
+	textureDesc.name = path;
+	textureDesc.width = maxGlyphWidth * glyphGridWidth;
+	textureDesc.height = maxGlyphRows * glyphGridHeight;
+	textureDesc.format = JM_TEXTURE_FORMAT_R8;
+	textureDesc.data = pixels;
+	jm_renderer_create_texture_resource(&textureDesc, &fontInfo.texture);
 
 	free(pixels);
 
@@ -263,8 +243,8 @@ void jm_font_get_text_vertices(
 	const float lineHeight = fontInfo->height; //* cmd->lineSpacingMultiplier;
 	const jm_glyph_info* glyphInfo = fontInfo->glyphs;
 
-	float penX = 0.0f;
-	float penY = 0.0f;
+	float penX = topLeftX;
+	float penY = topLeftY;
 
 	uint32_t indexCount = 0;
 	uint32_t dstI = 0;

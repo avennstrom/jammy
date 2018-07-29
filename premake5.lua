@@ -1,3 +1,9 @@
+freetype_include = "C:\\Users\\Andreas\\Documents\\GitHub\\freetype2\\include"
+freetype_libdir = "C:\\Users\\Andreas\\Documents\\cmake\\freetype2\\Release"
+freetype_libdir_debug = "C:\\Users\\Andreas\\Documents\\cmake\\freetype2\\Debug"
+freetype_lib = "freetype"
+freetype_lib_debug = "freetyped"
+
 solution "jammy"
 	platforms { "Win64", "Linux64" }
 	configurations { "Debug", "Development", "Standalone" }
@@ -13,6 +19,14 @@ project "bin2h"
 
 	files {
 		"%{prj.location}/bin2h/bin2h.c",
+	}
+
+	flags {
+		"FatalWarnings",
+	}
+
+	defines {
+		"_CRT_SECURE_NO_WARNINGS",
 	}
 
 project "lua"
@@ -36,10 +50,12 @@ project "lua"
 
 	defines {
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
-		"LUA_USE_MKSTEMP",
 		"WIN32_LEAN_AND_MEAN",
 		"_CRT_SECURE_NO_WARNINGS",
 	}
+
+	filter { "platforms:Linux64" }
+		defines { "LUA_USE_MKSTEMP" }
 
 	filter { "configurations:Debug" }
 		defines { "_DEBUG" }
@@ -103,29 +119,20 @@ project "jammy"
 	objdir "%{sln.location}/intermediate/%{prj.name}/%{cfg.shortname}"
 	characterset "MBCS"
 
-	embedShaderPath = '%{prj.location}/jammy/embedded_shaders.h'
-
 	files {
 		"%{prj.location}/jammy/**.h",
 		"%{prj.location}/jammy/**.c",
-		"%{prj.location}/jammy/**.hlsl",
-		"%{prj.location}/jammy/**.vs",
-		"%{prj.location}/jammy/**.fs",
-	}
-
-	excludes {
-		embedShaderPath,
 	}
 
 	includedirs {
 		"%{prj.location}",
 		"%{prj.location}/lua",
 		"/usr/local/include/freetype2",
+		freetype_include,
 	}
 
 	defines {
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
-		"LUA_USE_MKSTEMP",
 		"_CRT_SECURE_NO_WARNINGS",
 		"WIN32_LEAN_AND_MEAN",
 		"RMT_ENABLED=0",
@@ -136,26 +143,47 @@ project "jammy"
 		"FatalWarnings",
 	}
 
-	prebuildcommands {
-		'{DELETE} ' .. embedShaderPath,
-	}
+	filter { "configurations:Debug" }
+		libdirs { freetype_libdir_debug }
+		links { freetype_lib_debug }
 
-	filter { "platforms:Win64", "files:**.hlsl" }
+	filter { "configurations:not Debug" }
+		libdirs { freetype_libdir }
+		links { freetype_lib }
+
+	filter { "platforms:Linux64" }
+		defines { "LUA_USE_MKSTEMP" }
+
+	filter { "platforms:Win64" }
+		files {
+			"%{prj.location}/jammy/**.hlsl",
+		}
+
+	filter { "platforms:Linux64" }
+		files {
+			"%{prj.location}/jammy/**.vs",
+			"%{prj.location}/jammy/**.fs",
+		}
+
+	filter { "files:**.hlsl" }
 		local fxc = '"C:/Program Files (x86)/Windows Kits/10/bin/x64/fxc.exe"'
-		local bin2h = '"%{sln.location}/utils/bin2h.exe"'
+		local bin2h = '%{sln.location}/utils/bin2h.exe'
 		local vsPath = '%{cfg.objdir}/shader_%{file.basename}_vs.bin'
 		local psPath = '%{cfg.objdir}/shader_%{file.basename}_ps.bin'
+		local embedVsPath = '%{prj.location}/jammy/shaders/dx11/%{file.basename}.vs.h'
+		local embedPsPath = '%{prj.location}/jammy/shaders/dx11/%{file.basename}.ps.h'
 		buildmessage 'Compiling %{file.relpath}'
 		buildcommands { 
 			fxc .. ' /nologo /O3 /E VertexMain /T vs_5_0 /Fo ' .. vsPath .. ' "%{file.path}"',
 			fxc .. ' /nologo /O3 /E PixelMain  /T ps_5_0 /Fo ' .. psPath .. ' "%{file.path}"',
-			bin2h .. ' jm_embedded_vs_%{file.basename} < ' .. vsPath .. ' >> ' .. embedShaderPath,
-			bin2h .. ' jm_embedded_ps_%{file.basename} < ' .. psPath .. ' >> ' .. embedShaderPath,
+			bin2h .. ' "' .. vsPath .. '" "' .. embedVsPath .. '" jm_embedded_vs_%{file.basename}',
+			bin2h .. ' "' .. psPath .. '" "' .. embedPsPath .. '" jm_embedded_ps_%{file.basename}',
 		}
 		buildoutputs { 
 			vsPath,
 			psPath,
-			embedShaderPath,
+			embedVsPath,
+			embedPsPath,
 		}
 
 	filter { "files:**.vs" }
@@ -226,7 +254,6 @@ project "jammy"
 			"windowscodecs",
 			"dxguid",
 			"dsound",
-			"freetype",
 		}
 
 	filter { "platforms:Linux64" }

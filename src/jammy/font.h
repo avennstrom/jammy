@@ -23,7 +23,7 @@ typedef struct jm_glyph_info
 
 typedef struct jm_font_info
 {
-	void* srv;
+	jm_texture_resource texture;
 	jm_glyph_info* glyphs;
 	float height;
 } jm_font_info;

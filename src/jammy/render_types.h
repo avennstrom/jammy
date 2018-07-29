@@ -12,6 +12,12 @@ typedef GLuint jm_texture_resource;
 typedef GLuint jm_buffer_resource;
 #endif
 
+typedef enum jm_texture_format
+{
+	JM_TEXTURE_FORMAT_R8,
+	JM_TEXTURE_FORMAT_R8G8B8A8,
+} jm_texture_format;
+
 typedef enum jm_shader_program
 {
 	JM_SHADER_PROGRAM_COLOR,
@@ -19,13 +25,6 @@ typedef enum jm_shader_program
 	JM_SHADER_PROGRAM_TEXT,
 	JM_SHADER_PROGRAM_COUNT,
 } jm_shader_program;
-
-typedef enum jm_input_layout
-{
-	JM_INPUT_LAYOUT_POS,
-	JM_INPUT_LAYOUT_POS_UV,
-	JM_INPUT_LAYOUT_COUNT,
-} jm_input_layout;
 
 typedef enum jm_constant_buffer
 {

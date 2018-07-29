@@ -1,4 +1,4 @@
-#if !defined(JM_STANDALONE) && 0
+#if !defined(JM_STANDALONE) && defined(JM_WINDOWS)
 
 #include "build.h"
 

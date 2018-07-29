@@ -11,12 +11,14 @@ lib
 
 embedded_shaders.h
 
-# OpenGL shaders
+# shaders
 *.vs.h
 *.fs.h
+*.ps.h
 
 *.make
 Makefile
 premake5
 
 utils/bin2h
+utils/bin2h*

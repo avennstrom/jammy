@@ -25,6 +25,8 @@ void __jm_render_command_draw_text(
 	jm_assert(cmd->fontHandle != JM_FONT_HANDLE_INVALID);
 	jm_assert(cmd->text);
 
+	ID3D11DeviceContext* d3dctx = (ID3D11DeviceContext*)ctx->platformContext;
+
 	const size_t textLength = strlen(cmd->text);
 
 	// fill buffers
@@ -54,40 +56,40 @@ void __jm_render_command_draw_text(
 	D3D11_MAPPED_SUBRESOURCE vertexBufferData;
 	D3D11_MAPPED_SUBRESOURCE indexBufferData;
 
-	ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)dynamicVertexBuffer, 0, vbMapType, 0, &vertexBufferData);
-	ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)indexBuffer, 0, ibMapType, 0, &indexBufferData);
+	d3dctx->lpVtbl->Map(d3dctx, (ID3D11Resource*)dynamicVertexBuffer, 0, vbMapType, 0, &vertexBufferData);
+	d3dctx->lpVtbl->Map(d3dctx, (ID3D11Resource*)indexBuffer, 0, ibMapType, 0, &indexBufferData);
 
 	jm_vertex* dstPosition = (jm_vertex*)((uint8_t*)vertexBufferData.pData + vertexBufferOffset + positionOffset);
 	jm_texcoord* dstTexcoord = (jm_texcoord*)((uint8_t*)vertexBufferData.pData + vertexBufferOffset + texcoordOffset);
-	uint16_t* dstIndex = (uint16_t*)((uint8_t*)indexBufferData.pData + indexBufferOffset);
+	uint16_t* dstIndices = (uint16_t*)((uint8_t*)indexBufferData.pData + indexBufferOffset);
 
-	float penX = cmd->x;
-	float penY = cmd->y;
-	penY += lineHeight;
+	uint32_t indexCount;
+	jm_font_get_text_vertices(
+		cmd->fontHandle,
+		cmd->text,
+		cmd->x,
+		cmd->y,
+		cmd->width,
+		cmd->rangeStart,
+		cmd->rangeEnd,
+		cmd->scale,
+		dstPosition,
+		dstTexcoord,
+		(uint16_t*)dstIndices,
+		&indexCount);
 
-	
-
-	ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)dynamicVertexBuffer, 0);
-	ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)indexBuffer, 0);
+	d3dctx->lpVtbl->Unmap(d3dctx, (ID3D11Resource*)dynamicVertexBuffer, 0);
+	d3dctx->lpVtbl->Unmap(d3dctx, (ID3D11Resource*)indexBuffer, 0);
 
 	// bind shaders
-	jm_input_layout inputLayout = JM_INPUT_LAYOUT_POS_UV;
-	jm_vertex_shader vertexShader = JM_VERTEX_SHADER_TEXT;
-	jm_pixel_shader pixelShader = JM_PIXEL_SHADER_TEXT;
-
-	ID3D11InputLayout* d3dInputLayout = jm_renderer_get_inputLayout(inputLayout);
-	ID3D11VertexShader* vs = jm_renderer_get_vs(vertexShader);
-	ID3D11PixelShader* ps = jm_renderer_get_ps(pixelShader);
-	ctx->d3dctx->lpVtbl->IASetInputLayout(ctx->d3dctx, d3dInputLayout);
-	ctx->d3dctx->lpVtbl->VSSetShader(ctx->d3dctx, vs, NULL, 0);
-	ctx->d3dctx->lpVtbl->PSSetShader(ctx->d3dctx, ps, NULL, 0);
+	jm_renderer_set_shader_program(JM_SHADER_PROGRAM_TEXT);
 
 	// set blend state
 	jm_blend_state blendState = JM_BLEND_STATE_TRANSPARENT;
 	ID3D11BlendState* d3dBlendState = jm_renderer_get_blend_state(blendState);
 
 	const float blendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	ctx->d3dctx->lpVtbl->OMSetBlendState(ctx->d3dctx, d3dBlendState, blendFactor, 0xff);
+	d3dctx->lpVtbl->OMSetBlendState(d3dctx, d3dBlendState, blendFactor, 0xff);
 
 	ID3D11Buffer* const vscb[] = {
 		jm_renderer_get_constant_buffer(JM_CONSTANT_BUFFER_PER_VIEW_VS)
@@ -98,7 +100,7 @@ void __jm_render_command_draw_text(
 
 	// update constants
 	D3D11_MAPPED_SUBRESOURCE ms;
-	if (SUCCEEDED(ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
+	if (SUCCEEDED(d3dctx->lpVtbl->Map(d3dctx, (ID3D11Resource*)pscb[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
 	{
 		typedef struct constants
 		{
@@ -107,12 +109,12 @@ void __jm_render_command_draw_text(
 		constants* cb = (constants*)ms.pData;
 		jm_unpack_color32_rgba_f32(cmd->color, &cb->r, &cb->g, &cb->b, &cb->a);
 
-		ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0);
+		d3dctx->lpVtbl->Unmap(d3dctx, (ID3D11Resource*)pscb[0], 0);
 	}
 
 	// bind constant buffers
-	ctx->d3dctx->lpVtbl->VSSetConstantBuffers(ctx->d3dctx, 0, _countof(vscb), vscb);
-	ctx->d3dctx->lpVtbl->PSSetConstantBuffers(ctx->d3dctx, 0, _countof(pscb), pscb);
+	d3dctx->lpVtbl->VSSetConstantBuffers(d3dctx, 0, _countof(vscb), vscb);
+	d3dctx->lpVtbl->PSSetConstantBuffers(d3dctx, 0, _countof(pscb), pscb);
 
 	// setup input assembler
 	ID3D11Buffer* const vertexBuffers[] = {
@@ -128,20 +130,20 @@ void __jm_render_command_draw_text(
 		vertexBufferOffset + texcoordOffset, // uv
 	};
 
-	ctx->d3dctx->lpVtbl->IASetVertexBuffers(ctx->d3dctx, 0, _countof(vertexBuffers), vertexBuffers, strides, offsets);
-	ctx->d3dctx->lpVtbl->IASetPrimitiveTopology(ctx->d3dctx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, _countof(vertexBuffers), vertexBuffers, strides, offsets);
+	d3dctx->lpVtbl->IASetPrimitiveTopology(d3dctx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// bind texture
-	ID3D11ShaderResourceView* srv[] = { fontInfo->srv };
-	ctx->d3dctx->lpVtbl->PSSetShaderResources(ctx->d3dctx, 0, _countof(srv), srv);
+	ID3D11ShaderResourceView* srv[] = { jm_font_get_info(cmd->fontHandle)->texture };
+	d3dctx->lpVtbl->PSSetShaderResources(d3dctx, 0, _countof(srv), srv);
 	// bind sampler
 	ID3D11SamplerState* samplers[] = { jm_renderer_get_sampler(JM_SAMPLER_STATE_POINT) };
-	ctx->d3dctx->lpVtbl->PSSetSamplers(ctx->d3dctx, 0, _countof(samplers), samplers);
+	d3dctx->lpVtbl->PSSetSamplers(d3dctx, 0, _countof(samplers), samplers);
 
 	const DXGI_FORMAT indexFormat = DXGI_FORMAT_R16_UINT;
-	ctx->d3dctx->lpVtbl->IASetIndexBuffer(ctx->d3dctx, indexBuffer, indexFormat, indexBufferOffset);
+	d3dctx->lpVtbl->IASetIndexBuffer(d3dctx, indexBuffer, indexFormat, indexBufferOffset);
 
-	ctx->d3dctx->lpVtbl->DrawIndexed(ctx->d3dctx, indexCount, 0, 0);
+	d3dctx->lpVtbl->DrawIndexed(d3dctx, indexCount, 0, 0);
 
 	rmt_EndCPUSample();
 }
@@ -151,6 +153,8 @@ void __jm_render_command_draw(
 	const jm_render_command_draw* cmd)
 {
 	rmt_BeginCPUSample(__jm_render_command_draw, 0);
+
+	ID3D11DeviceContext* d3dctx = (ID3D11DeviceContext*)ctx->platformContext;
 
 	const bool isIndexed = cmd->indices != NULL;
 	const bool isTextured = cmd->textureHandle != JM_TEXTURE_HANDLE_INVALID;
@@ -195,7 +199,7 @@ void __jm_render_command_draw(
 
 	const D3D11_MAP mapType = (vertexBufferOffset == 0) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
 	ID3D11Resource* vertexBuffer = (ID3D11Resource*)dynamicVertexBuffer;
-	if (SUCCEEDED(ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, vertexBuffer, 0, mapType, 0, &ms)))
+	if (SUCCEEDED(d3dctx->lpVtbl->Map(d3dctx, vertexBuffer, 0, mapType, 0, &ms)))
 	{
 		uint8_t* dstPosition = (uint8_t*)ms.pData + vertexBufferOffset + positionOffset;
 		uint8_t* dstTexcoord = (uint8_t*)ms.pData + vertexBufferOffset + texcoordOffset;
@@ -213,26 +217,16 @@ void __jm_render_command_draw(
 		{
 			memcpy(dstVertexColor, NULL, vertexDataSize);
 		}
-		ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, vertexBuffer, 0);
+		d3dctx->lpVtbl->Unmap(d3dctx, vertexBuffer, 0);
 	}
 
 	// bind shaders
-	jm_input_layout inputLayout = JM_INPUT_LAYOUT_POS;
-	jm_vertex_shader vertexShader = JM_VERTEX_SHADER_COLOR;
-	jm_pixel_shader pixelShader = JM_PIXEL_SHADER_COLOR;
+	jm_shader_program shaderProgram = JM_SHADER_PROGRAM_COLOR;
 	if (isTextured)
 	{
-		inputLayout = JM_INPUT_LAYOUT_POS_UV;
-		vertexShader = JM_VERTEX_SHADER_TEXTURE;
-		pixelShader = JM_PIXEL_SHADER_TEXTURE;
+		shaderProgram = JM_SHADER_PROGRAM_TEXTURE;
 	}
-
-	ID3D11InputLayout* d3dInputLayout = jm_renderer_get_inputLayout(inputLayout);
-	ID3D11VertexShader* vs = jm_renderer_get_vs(vertexShader);
-	ID3D11PixelShader* ps = jm_renderer_get_ps(pixelShader);
-	ctx->d3dctx->lpVtbl->IASetInputLayout(ctx->d3dctx, d3dInputLayout);
-	ctx->d3dctx->lpVtbl->VSSetShader(ctx->d3dctx, vs, NULL, 0);
-	ctx->d3dctx->lpVtbl->PSSetShader(ctx->d3dctx, ps, NULL, 0);
+	jm_renderer_set_shader_program(shaderProgram);
 
 	// set blend state
 	jm_blend_state blendState = JM_BLEND_STATE_OPAQUE;
@@ -243,7 +237,7 @@ void __jm_render_command_draw(
 	ID3D11BlendState* d3dBlendState = jm_renderer_get_blend_state(blendState);
 
 	const float blendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	ctx->d3dctx->lpVtbl->OMSetBlendState(ctx->d3dctx, d3dBlendState, blendFactor, 0xff);
+	d3dctx->lpVtbl->OMSetBlendState(d3dctx, d3dBlendState, blendFactor, 0xff);
 
 	ID3D11Buffer* const vscb[] = {
 		jm_renderer_get_constant_buffer(JM_CONSTANT_BUFFER_PER_VIEW_VS)
@@ -253,7 +247,7 @@ void __jm_render_command_draw(
 	};
 
 	// update constants
-	if (SUCCEEDED(ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
+	if (SUCCEEDED(d3dctx->lpVtbl->Map(d3dctx, (ID3D11Resource*)pscb[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
 	{
 		typedef struct constants
 		{
@@ -262,12 +256,12 @@ void __jm_render_command_draw(
 		constants* cb = (constants*)ms.pData;
 		jm_unpack_color32_rgba_f32(cmd->color, &cb->r, &cb->g, &cb->b, &cb->a);
 
-		ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0);
+		d3dctx->lpVtbl->Unmap(d3dctx, (ID3D11Resource*)pscb[0], 0);
 	}
 
 	// bind constant buffers
-	ctx->d3dctx->lpVtbl->VSSetConstantBuffers(ctx->d3dctx, 0, _countof(vscb), vscb);
-	ctx->d3dctx->lpVtbl->PSSetConstantBuffers(ctx->d3dctx, 0, _countof(pscb), pscb);
+	d3dctx->lpVtbl->VSSetConstantBuffers(d3dctx, 0, _countof(vscb), vscb);
+	d3dctx->lpVtbl->PSSetConstantBuffers(d3dctx, 0, _countof(pscb), pscb);
 
 	// setup input assembler
 	ID3D11Buffer* const vertexBuffers[] = { 
@@ -286,17 +280,17 @@ void __jm_render_command_draw(
 		vertexBufferOffset + vertexColorOffset, // color
 	};
 
-	ctx->d3dctx->lpVtbl->IASetVertexBuffers(ctx->d3dctx, 0, _countof(vertexBuffers), vertexBuffers, strides, offsets);
-	ctx->d3dctx->lpVtbl->IASetPrimitiveTopology(ctx->d3dctx, d3dPrimitiveTopology[cmd->topology]);
+	d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, _countof(vertexBuffers), vertexBuffers, strides, offsets);
+	d3dctx->lpVtbl->IASetPrimitiveTopology(d3dctx, d3dPrimitiveTopology[cmd->topology]);
 
 	if (isTextured)
 	{
 		// bind texture
-		ID3D11ShaderResourceView* srv[] = { jm_texture_get_srv(cmd->textureHandle) };
-		ctx->d3dctx->lpVtbl->PSSetShaderResources(ctx->d3dctx, 0, _countof(srv), srv);
+		ID3D11ShaderResourceView* srv[] = { jm_texture_get_resource(cmd->textureHandle) };
+		d3dctx->lpVtbl->PSSetShaderResources(d3dctx, 0, _countof(srv), srv);
 		// bind sampler
 		ID3D11SamplerState* samplers[] = { jm_renderer_get_sampler(cmd->samplerState) };
-		ctx->d3dctx->lpVtbl->PSSetSamplers(ctx->d3dctx, 0, _countof(samplers), samplers);
+		d3dctx->lpVtbl->PSSetSamplers(d3dctx, 0, _countof(samplers), samplers);
 	}
 
 	if (isIndexed)
@@ -307,20 +301,20 @@ void __jm_render_command_draw(
 		ctx->indexBufferOffset += indexBufferSize;
 
 		const D3D11_MAP mapType = (indexBufferOffset == 0) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
-		if (SUCCEEDED(ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)indexBuffer, 0, mapType, 0, &ms)))
+		if (SUCCEEDED(d3dctx->lpVtbl->Map(d3dctx, (ID3D11Resource*)indexBuffer, 0, mapType, 0, &ms)))
 		{
 			memcpy((char*)ms.pData + indexBufferOffset, cmd->indices, indexBufferSize);
-			ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)indexBuffer, 0);
+			d3dctx->lpVtbl->Unmap(d3dctx, (ID3D11Resource*)indexBuffer, 0);
 		}
 
 		const DXGI_FORMAT indexFormat = DXGI_FORMAT_R16_UINT;
 
-		ctx->d3dctx->lpVtbl->IASetIndexBuffer(ctx->d3dctx, indexBuffer, indexFormat, indexBufferOffset);
-		ctx->d3dctx->lpVtbl->DrawIndexed(ctx->d3dctx, cmd->indexCount, 0, 0);
+		d3dctx->lpVtbl->IASetIndexBuffer(d3dctx, indexBuffer, indexFormat, indexBufferOffset);
+		d3dctx->lpVtbl->DrawIndexed(d3dctx, cmd->indexCount, 0, 0);
 	}
 	else
 	{
-		ctx->d3dctx->lpVtbl->Draw(ctx->d3dctx, cmd->vertexCount, 0);
+		d3dctx->lpVtbl->Draw(d3dctx, cmd->vertexCount, 0);
 	}
 
 	rmt_EndCPUSample();
@@ -330,7 +324,7 @@ void jm_draw_context_begin(
 	jm_draw_context* ctx, 
 	ID3D11DeviceContext* d3dctx)
 {
-	ctx->d3dctx = d3dctx;
+	ctx->platformContext = d3dctx;
 	ctx->vertexBufferOffset = 0;
 	ctx->indexBufferOffset = 0;
 }

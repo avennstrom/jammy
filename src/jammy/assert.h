@@ -1,7 +1,7 @@
 #pragma once
 
 #if !defined(JM_STANDALONE)
-#define JM_ASSERT_ENABLED 0
+#define JM_ASSERT_ENABLED 1
 #else
 #define JM_ASSERT_ENABLED 0
 #endif

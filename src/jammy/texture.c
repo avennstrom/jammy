@@ -38,7 +38,7 @@ static bool try_load_bmp(
 	void** outPixels,
 	uint32_t* outWidth,
 	uint32_t* outHeight,
-	uint32_t* outFormat)
+	jm_texture_format* outFormat)
 {
 	FILE* f = fopen(path, "r");
 
@@ -106,7 +106,7 @@ static bool try_load_bmp(
 	*outPixels = pixels;
 	*outWidth = bmpInfoHeader.width;
 	*outHeight = bmpInfoHeader.height;
-	//*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	*outFormat = JM_TEXTURE_FORMAT_R8G8B8A8;
 	return true;
 }
 
@@ -115,7 +115,7 @@ static bool try_load_png(
 	void** outPixels,
 	uint32_t* outWidth,
 	uint32_t* outHeight,
-	uint32_t* outFormat)
+	jm_texture_format* outFormat)
 {
 	unsigned error = lodepng_decode32_file((uint8_t**)outPixels, outWidth, outHeight, path);
 
@@ -125,7 +125,7 @@ static bool try_load_png(
 		return false;
 	}
 
-	//*outFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	*outFormat = JM_TEXTURE_FORMAT_R8G8B8A8;
 	return true;
 }
 
@@ -134,7 +134,7 @@ static bool jm_load_image_pixels(
 	void** outPixels,
 	uint32_t* outWidth, 
 	uint32_t* outHeight,
-	uint32_t* outFormat)
+	jm_texture_format* outFormat)
 {
 	if (try_load_bmp(path, outPixels, outWidth, outHeight, outFormat))
 	{
@@ -165,7 +165,7 @@ jm_texture_handle jm_load_texture(
 	const char* path)
 {
 	const uint64_t key = jm_fnv(path);
-	const uint64_t* find = bsearch(&key, g_textures.keys, g_textures.count, sizeof(uint64_t), (__compar_fn_t)key_search_compare);
+	const uint64_t* find = bsearch(&key, g_textures.keys, g_textures.count, sizeof(uint64_t), key_search_compare);
 	if (find)
 	{
 		return (jm_texture_handle)(find - g_textures.keys);
@@ -182,7 +182,7 @@ jm_texture_handle jm_load_texture(
 	
 	void* pixels;
 	uint32_t width, height;
-	uint32_t format;
+	jm_texture_format format;
 	if (!jm_load_image_pixels(path, &pixels, &width, &height, &format))
 	{
 		return JM_TEXTURE_HANDLE_INVALID;
@@ -200,43 +200,14 @@ jm_texture_handle jm_load_texture(
 	}
 
 	jm_texture_resource_desc resourceDesc;
+	resourceDesc.name = path;
 	resourceDesc.width = width;
 	resourceDesc.height = height;
 	resourceDesc.data = pixels;
+	resourceDesc.format = format;
 
 	jm_texture_resource resource;
 	jm_renderer_create_texture_resource(&resourceDesc, &resource);
-
-#if defined(JM_WINDOWS)
-	D3D11_TEXTURE2D_DESC textureDesc;
-	textureDesc.ArraySize = 1;
-	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	textureDesc.CPUAccessFlags = 0;
-	textureDesc.Format = format;
-	textureDesc.MipLevels = 1;
-	textureDesc.MiscFlags = 0;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	textureDesc.Width = width;
-	textureDesc.Height = height;
-
-	D3D11_SUBRESOURCE_DATA textureData;
-	textureData.pSysMem = pixels;
-	textureData.SysMemPitch = textureDesc.Width * 4;
-	textureData.SysMemSlicePitch = 0;
-
-	ID3D11Device* d3ddevice = jm_renderer_get_device();
-
-	ID3D11Texture2D* texture;
-	d3ddevice->lpVtbl->CreateTexture2D(d3ddevice, &textureDesc, &textureData, &texture);
-	d3ddevice->lpVtbl->CreateShaderResourceView(d3ddevice, (ID3D11Resource*)texture, NULL, &resource);
-
-#if defined(JM_DEBUG)
-	texture->lpVtbl->SetPrivateData(texture, &WKPDID_D3DDebugObjectName, (UINT)strlen(path), path);
-#endif
-	texture->lpVtbl->Release(texture);
-#endif
 
 	free(pixels);
 

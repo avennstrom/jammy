@@ -7,6 +7,10 @@
 
 #include <float.h>
 
+#if defined(_MSC_VER)
+#define __always_inline __forceinline
+#endif
+
 #define JM_DECLARE_RENDER_COMMAND(CommandName) \
 	typedef struct CommandName CommandName; \
 	void __##CommandName(jm_draw_context*, const struct CommandName*); \
