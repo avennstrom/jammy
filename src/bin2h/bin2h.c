@@ -3,9 +3,10 @@
 #include <inttypes.h>
 #include <string.h>
 
-void print_usage_and_exit()
+void print_usage_and_exit(
+    const char* exe)
 {
-    printf("Usage:\nbin2h input_file output_file variable_name\n");
+    printf("Usage:\n%s input_file output_file variable_name\n", exe);
     exit(-1);
 }
 
@@ -13,7 +14,7 @@ int main(int argc, char** argv)
 {
     if (argc < 4)
     {
-        print_usage_and_exit();
+        print_usage_and_exit(argv[0]);
     }
 
     const char* inputFilePath = argv[1];

@@ -551,9 +551,9 @@ static DWORD jm_render_thread_proc(
 				constants->viewProjectionMatrix[0] = 1.0f / halfWidth;
 				constants->viewProjectionMatrix[5] = -1.0f / halfHeight;
 				constants->viewProjectionMatrix[10] = 1.0f;
-				constants->viewProjectionMatrix[15] = 1.0f;
 				constants->viewProjectionMatrix[12] = -1.0f;
 				constants->viewProjectionMatrix[13] = 1.0f;
+				constants->viewProjectionMatrix[15] = 1.0f;
 
 				param->d3dctx->lpVtbl->Unmap(param->d3dctx, (ID3D11Resource*)vscb, 0);
 			}

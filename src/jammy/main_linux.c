@@ -55,20 +55,13 @@ int main()
     printf("%s\n", exePath);
     chdir(exePath);
 
-    const uint32_t width = 192 * 2;
-	const uint32_t height = 192 * 2;
-	const uint32_t pixelScale = 1;
+#if RMT_ENABLED
+	Remotery* rmt;
+#endif
+	rmt_CreateGlobalInstance(&rmt);
+	rmt_SetCurrentThreadName("Gameplay");
 
 	lua_State* L = luaL_newstate();
-
-	lua_newtable(L);
-	lua_pushliteral(L, "width");
-	lua_pushinteger(L, 1);
-	lua_settable(L, -3);
-	lua_pushliteral(L, "height");
-	lua_pushinteger(L, 1);
-	lua_settable(L, -3);
-	lua_setglobal(L, "jam");
 
 	jm_command_buffer commandBuffers[2];
 	jm_command_buffer_init(&commandBuffers[0], COMMAND_BUFFER_SIZE, MAX_RENDER_COMMANDS);
@@ -126,20 +119,75 @@ int main()
 	lua_getglobal(L, "draw");
 	const int fnDraw = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	// get game name
-	char gameName[64];
+    static const char defaultGameName[] = "jammy";
+
+    char* gameName;
+    uint32_t width;
+    uint32_t height;
+	uint32_t pixelScale = 1;
+    int vsync = true;
+
 	lua_getglobal(L, "jam");
-	lua_pushliteral(L, "name");
-	lua_gettable(L, -2);
-	if (lua_isstring(L, -1))
-	{
-		strcpy(gameName, lua_tostring(L, -1));
-	}
-	else
-	{
-		strcpy(gameName, "jammy");
-	}
-	lua_pop(L, 2);
+    {
+        // get game name
+        lua_pushliteral(L, "name");
+        lua_gettable(L, -2);
+        if (lua_isstring(L, -1))
+        {
+            gameName = malloc(strlen(lua_tostring(L, -1)) + 1);
+            strcpy(gameName, lua_tostring(L, -1));
+        }
+        else
+        {
+            gameName = malloc(strlen(defaultGameName) + 1);
+            strcpy(gameName, defaultGameName);
+        }
+        lua_pop(L, 1);
+        // get dimensions
+        lua_pushliteral(L, "graphics");
+        lua_gettable(L, -2);
+        {
+            lua_pushliteral(L, "width");
+            lua_gettable(L, -2);
+            if (!lua_isnumber(L, -1))
+            {
+                fprintf(stderr, "please specify the game's resolution by setting jam.graphics.width and jam.graphics.height\n");
+                exit(1);
+            }
+            width = lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "height");
+            lua_gettable(L, -2);
+            if (!lua_isnumber(L, -1))
+            {
+                fprintf(stderr, "please specify the game's resolution by setting jam.graphics.width and jam.graphics.height\n");
+                exit(1);
+            }
+            height = lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "pixelScale");
+            lua_gettable(L, -2);
+            if (lua_isnumber(L, -1))
+            {
+                pixelScale = lua_tointeger(L, -1);
+            }
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "vsync");
+            lua_gettable(L, -2);
+            if (lua_isboolean(L, -1))
+            {
+                vsync = lua_toboolean(L, -1);
+            }
+            lua_pop(L, 1);
+
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+    }
 
     Display* display = XOpenDisplay(NULL);
     if (display == NULL) {
@@ -175,11 +223,11 @@ int main()
     windowAttribs.event_mask = ExposureMask;
     Window window = XCreateWindow(
         display, 
-        RootWindow(display, screenId), 
+        RootWindow(display, screenId),
         0,
         0, 
-        width, 
-        height, 
+        width * pixelScale, 
+        height * pixelScale, 
         0, 
         visual->depth, 
         InputOutput, 
@@ -187,17 +235,40 @@ int main()
         CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, 
         &windowAttribs);
 
+    // set window title
     XStoreName(display, window, gameName);
 
+    free(gameName);
+
+    // prevent window resizing
+    XSizeHints* sizeHints = XAllocSizeHints();
+    sizeHints->flags = PMinSize | PMaxSize;
+    sizeHints->min_width = sizeHints->max_width = width * pixelScale;
+    sizeHints->min_height = sizeHints->max_height = height * pixelScale;
+    XSetWMNormalHints(display, window, sizeHints);
+    XFree(sizeHints);
+
+    // create OpenGL context
     GLXContext context = glXCreateContext(display, visual, NULL, GL_TRUE);
     glXMakeCurrent(display, window, context);
+
+    PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = glXGetProcAddress("glXSwapIntervalEXT");
+    PFNGLXSWAPINTERVALMESAPROC glXSwapIntervalMESA = glXGetProcAddress("glXSwapIntervalMESA");
+    if (glXSwapIntervalEXT)
+    {
+        glXSwapIntervalEXT(display, window, vsync);
+    }
+    else if (glXSwapIntervalMESA)
+    {
+        glXSwapIntervalMESA(vsync);
+    }
 
     glewInit();
 
     printf("GL Vendor: %s\n", glGetString(GL_VENDOR));
     printf("GL Renderer: %s\n", glGetString(GL_RENDERER));
     printf("GL Version: %s\n", glGetString(GL_VERSION));
-    printf("GL Shading Language: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));glewInit();
+    printf("GL Shading Language: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
     if (jm_renderer_init())
 	{
@@ -205,10 +276,15 @@ int main()
 		exit(1);
 	}
 
-    const long eventMask = ExposureMask | KeyPressMask;
-    XSelectInput(display, window, eventMask);
-    XMapWindow(display, window);
+    const long windowEventMask = KeyPressMask | KeyReleaseMask;
+    XSelectInput(display, window, windowEventMask);
  
+    // intercept WM_DELETE_WINDOW, which is fired when a user wants to close the window
+    const Atom WM_DELETE_WINDOW = XInternAtom(display, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(display, window, (Atom*)&WM_DELETE_WINDOW, 1);
+
+    XMapWindow(display, window);
+
     lua_getglobal(L, "start");
 	jm_lua_call(L, 0, 0);
 
@@ -216,19 +292,57 @@ int main()
 
     struct timespec clockResolution;
     clock_getres(CLOCK_REALTIME, &clockResolution);
-
     struct timespec startTime;
     clock_gettime(CLOCK_REALTIME, &startTime);
+    struct timespec lastTime = startTime;
 
-    while (1) 
+    double tickTimer = 0.0;
+
+    while (true) 
     {
-        XEvent event;
-        while (XCheckWindowEvent(display, window, eventMask, &event))
+        rmt_BeginCPUSample(tick, 0);
+
+        bool shouldExit = false;
+        while (XPending(display))
         {
-            if (event.type == KeyPress)
+            XEvent event;
+            XNextEvent(display, &event);
+            if (!XFilterEvent(&event, window))
             {
-                break;
+                switch (event.type)
+                {
+                    case ClientMessage:
+                    {
+                        if ((Atom)event.xclient.data.l[0] == WM_DELETE_WINDOW) 
+                        {
+                            // user wants to close the window
+                            shouldExit = true;
+                        }
+                        break;
+                    }
+
+                    case KeyPress:
+                    case KeyRelease:
+                    {
+                        const int fn = (event.type == KeyPress) ? fnKeyDown : fnKeyUp;
+                        if (fn == LUA_REFNIL)
+                        {
+                            break;
+                        }
+
+                        const KeySym keySym = XLookupKeysym(&event.xkey, 0);
+                        lua_rawgeti(L, LUA_REGISTRYINDEX, fn);
+                        lua_pushinteger(L, (lua_Integer)keySym);
+                        jm_lua_call(L, 1, 0);
+                        break;
+                    }
+                }
             }
+        }
+
+        if (shouldExit)
+        {
+            break;
         }
 
         struct timespec currentTime;
@@ -237,10 +351,17 @@ int main()
         const double s = (double)(currentTime.tv_sec - startTime.tv_sec);
         const double ns = (double)currentTime.tv_nsec / (double)clockResolution.tv_nsec;
         const double elapsedTime = s + (ns / 1000000000.0);
+        const double currT = (double)(currentTime.tv_sec - lastTime.tv_sec) + ((double)currentTime.tv_nsec / 1000000000.0);
+        const double prevT = ((double)lastTime.tv_nsec / 1000000000.0);
+        const double deltaTime = currT - prevT;
+        lastTime = currentTime;
 
         lua_getglobal(L, "jam");
         lua_pushliteral(L, "elapsedTime");
         lua_pushnumber(L, (lua_Number)elapsedTime);
+        lua_settable(L, -3);
+        lua_pushliteral(L, "deltaTime");
+        lua_pushnumber(L, (lua_Number)TICK_RATE);
         lua_settable(L, -3);
         lua_pop(L, 1);
 
@@ -250,26 +371,49 @@ int main()
         // begin render command recording
 		jm_command_buffer_begin(&commandBuffers[bufferIndex]);
 
-        // call game tick function
-        lua_rawgeti(L, LUA_REGISTRYINDEX, fnTick);
-        jm_lua_call(L, 0, 0);
+        // tick
+        tickTimer += deltaTime;
+		while (tickTimer >= TICK_RATE)
+		{
+			tickTimer -= TICK_RATE;
 
-        // call game draw function
+            // tick physics
+            jm_physics_tick(TICK_RATE);
+
+            // tick game
+            rmt_BeginCPUSample(lua_tick, 0);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, fnTick);
+            jm_lua_call(L, 0, 0);
+            rmt_EndCPUSample();
+        }
+
+        // draw game
+        rmt_BeginCPUSample(lua_draw, 0);
         lua_rawgeti(L, LUA_REGISTRYINDEX, fnDraw);
         jm_lua_call(L, 0, 0);
+        rmt_EndCPUSample();
 
+        // swap buffers
+        rmt_BeginCPUSample(glXSwapBuffers, 0);
+        glXSwapBuffers(display, window);
+        rmt_EndCPUSample();
+
+        // clear the backbuffer
+        rmt_BeginCPUSample(clear, 0);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClearDepth(1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        rmt_EndCPUSample();
+
+        glViewport(0, 0, width * pixelScale, height * pixelScale);
 
         // execute render commands
         jm_draw_context drawContext;
-        jm_draw_context_begin(
-            &drawContext,
-            NULL);
+        jm_draw_context_begin(&drawContext, NULL);
+        jm_command_buffer_sort(&commandBuffers[bufferIndex]);
         jm_command_buffer_execute(&commandBuffers[bufferIndex], &drawContext);
 
-        glXSwapBuffers(display, window);
+        rmt_EndCPUSample();
     }
 
     glXDestroyContext(display, context);

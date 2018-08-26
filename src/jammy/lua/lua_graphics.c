@@ -11,6 +11,8 @@
 
 #include <string.h>
 
+static float g_cameraTransform[16];
+
 static int __drawText(lua_State* L)
 {
 	if (!lua_istable(L, 1))
@@ -153,9 +155,6 @@ static int __drawText(lua_State* L)
 
 static int __draw(lua_State* L)
 {
-	jm_render_command_draw* cmd = JM_COMMAND_BUFFER_PUSH(g_currentCommandBuffer, jm_render_command_draw);
-	jm_render_command_draw_init(cmd);
-
 	if (!lua_istable(L, 1))
 	{
 		luaL_argerror(L, 1, "");
@@ -170,6 +169,15 @@ static int __draw(lua_State* L)
 		luaL_argerror(L, 1, "the 'vertices' parameter must be an array");
 	}
 
+	if (lua_objlen(L, -1) == 0)
+	{
+		lua_pop(L, 2);
+		return 0;
+	}
+
+	jm_render_command_draw* cmd = JM_COMMAND_BUFFER_PUSH(g_currentCommandBuffer, jm_render_command_draw);
+	jm_render_command_draw_init(cmd);
+
 	cmd->vertexCount = (uint32_t)lua_objlen(L, -1);
 	cmd->vertices = jm_command_buffer_alloc(g_currentCommandBuffer, cmd->vertexCount * sizeof(jm_vertex));
 
@@ -179,6 +187,10 @@ static int __draw(lua_State* L)
 		jm_vertex* vtx = vertices + i;
 
 		lua_rawgeti(L, -1, i + 1);
+		if (!lua_istable(L, -1))
+		{
+			luaL_argerror(L, 1, "every element of the 'vertices' array must be a table");
+		}
 		
 		lua_rawgeti(L, -1, 1);
 		vtx->x = lua_tonumber(L, -1);
@@ -308,6 +320,9 @@ static int __draw(lua_State* L)
 	}
 	lua_pop(L, 1);
 
+	// set transform
+	memcpy(cmd->transform, g_cameraTransform, sizeof(cmd->transform));
+
 	return 0;
 }
 
@@ -344,6 +359,23 @@ static int __instantiateEffect(lua_State* L)
 	return 1;
 }
 
+static int __setCamera(lua_State* L)
+{
+	const float width = luaL_checkinteger(L, 1);
+	const float height = luaL_checkinteger(L, 2);
+
+	const float halfWidth = width / 2.0f;
+	const float halfHeight = height / 2.0f;
+
+	g_cameraTransform[0] = 1.0f / halfWidth;
+	g_cameraTransform[5] = -1.0f / halfHeight;
+	g_cameraTransform[10] = 1.0f;
+	g_cameraTransform[12] = -1.0f;
+	g_cameraTransform[13] = 1.0f;
+	g_cameraTransform[15] = 1.0f;
+	return 1;
+}
+
 void jm_luaopen_graphics(
 	lua_State* L)
 {
@@ -373,6 +405,10 @@ void jm_luaopen_graphics(
 
 	lua_pushliteral(L, "draw");
 	lua_pushcfunction(L, __draw);
+	lua_settable(L, -3);
+
+	lua_pushliteral(L, "setCamera");
+	lua_pushcfunction(L, __setCamera);
 	lua_settable(L, -3);
 
 	lua_pushliteral(L, "topology");
