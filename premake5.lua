@@ -174,8 +174,8 @@ project "jammy"
 		local embedPsPath = '%{prj.location}/jammy/shaders/dx11/%{file.basename}.ps.h'
 		buildmessage 'Compiling %{file.relpath}'
 		buildcommands { 
-			fxc .. ' /nologo /O3 /E VertexMain /T vs_5_0 /Fo ' .. vsPath .. ' "%{file.path}"',
-			fxc .. ' /nologo /O3 /E PixelMain  /T ps_5_0 /Fo ' .. psPath .. ' "%{file.path}"',
+			fxc .. ' /nologo /O3 /WX /E VertexMain /T vs_5_0 /Fo ' .. vsPath .. ' "%{file.path}"',
+			fxc .. ' /nologo /O3 /WX /E PixelMain  /T ps_5_0 /Fo ' .. psPath .. ' "%{file.path}"',
 			bin2h .. ' "' .. vsPath .. '" "' .. embedVsPath .. '" jm_embedded_vs_%{file.basename}',
 			bin2h .. ' "' .. psPath .. '" "' .. embedPsPath .. '" jm_embedded_ps_%{file.basename}',
 		}
