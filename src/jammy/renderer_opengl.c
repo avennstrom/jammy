@@ -24,7 +24,8 @@ typedef struct jm_renderer
 
 jm_renderer g_renderer;
 
-GLuint load_shader_program(
+void load_shader_program(
+    jm_shader_program shaderProgram,
     const char* vertexShaderCode, 
     const char* fragmentShaderCode)
 {
@@ -70,7 +71,7 @@ GLuint load_shader_program(
 	}
 
 	// Link the program
-	printf("Linking program\n");
+	//printf("Linking program\n");
 	GLuint program = glCreateProgram();
 	glAttachShader(program, vertexShader);
 	glAttachShader(program, fragmentShader);
@@ -94,21 +95,29 @@ GLuint load_shader_program(
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 
-	return program;
+    g_renderer.shaderPrograms[shaderProgram] = program;
 }
 
 void GLAPIENTRY
-MessageCallback( GLenum source,
-                 GLenum type,
-                 GLuint id,
-                 GLenum severity,
-                 GLsizei length,
-                 const GLchar* message,
-                 const void* userParam )
+MessageCallback( 
+    GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar* message,
+    const void* userParam)
 {
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+    {
+        // these are just annoying
+        return;
+    }
+
     printf("OpenGL message: %s\n", message);
     printf("type: ");
-    switch (type) {
+    switch (type) 
+    {
     case GL_DEBUG_TYPE_ERROR:
         printf("ERROR");
         break;
@@ -132,7 +141,11 @@ MessageCallback( GLenum source,
  
     printf("id: %u, ", id);
     printf("severity: ");
-    switch (severity){
+    switch (severity)
+    {
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        printf("NOTIFICATION");
+        break;
     case GL_DEBUG_SEVERITY_LOW:
         printf("LOW");
         break;
@@ -151,16 +164,14 @@ int jm_renderer_init()
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(MessageCallback, 0);
 
-    g_renderer.shaderPrograms[JM_SHADER_PROGRAM_COLOR] = load_shader_program(jm_embedded_vs_color, jm_embedded_fs_color);
-    g_renderer.shaderPrograms[JM_SHADER_PROGRAM_TEXTURE] = load_shader_program(jm_embedded_vs_texture, jm_embedded_fs_texture);
-    g_renderer.shaderPrograms[JM_SHADER_PROGRAM_TEXT] = load_shader_program(jm_embedded_vs_text, jm_embedded_fs_text);
+    load_shader_program(JM_SHADER_PROGRAM_COLOR, jm_embedded_vs_color, jm_embedded_fs_color);
+    load_shader_program(JM_SHADER_PROGRAM_TEXTURE, jm_embedded_vs_texture, jm_embedded_fs_texture);
+    load_shader_program(JM_SHADER_PROGRAM_TEXT, jm_embedded_vs_text, jm_embedded_fs_text);
 
     const size_t dynamicBufferSize = 32 * 1024 * 1024;
 
     glGenBuffers(1, &g_renderer.dynamicVertexBuffer);
     glGenBuffers(1, &g_renderer.dynamicIndexBuffer);
-
-    //glObjectLabel(GL_VERTEX_ARRAY, g_renderer.dynamicVertexBuffer, , const char * label​);
 
     glBindBuffer(GL_ARRAY_BUFFER, g_renderer.dynamicVertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, dynamicBufferSize, NULL, GL_DYNAMIC_DRAW);
@@ -206,6 +217,13 @@ GLuint jm_renderer_get_shader_program(
 	jm_shader_program shaderProgram)
 {
     return g_renderer.shaderPrograms[shaderProgram];
+}
+
+GLuint jm_renderer_get_uniform_location(
+	jm_shader_program shaderProgram,
+	const GLchar* name)
+{
+    return glGetUniformLocation(g_renderer.shaderPrograms[shaderProgram], name);
 }
 
 #endif

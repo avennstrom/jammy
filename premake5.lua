@@ -1,8 +1,8 @@
-freetype_include = "C:\\Users\\Andreas\\Documents\\GitHub\\freetype2\\include"
-freetype_libdir = "C:\\Users\\Andreas\\Documents\\cmake\\freetype2\\Release"
-freetype_libdir_debug = "C:\\Users\\Andreas\\Documents\\cmake\\freetype2\\Debug"
+freetype_include = "/usr/local/include/freetype2"
+freetype_libdir = "/usr/local/lib"
+freetype_libdir_debug = freetype_libdir
 freetype_lib = "freetype"
-freetype_lib_debug = "freetyped"
+freetype_lib_debug = freetype_lib
 
 solution "jammy"
 	platforms { "Win64", "Linux64" }
@@ -135,7 +135,7 @@ project "jammy"
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
 		"_CRT_SECURE_NO_WARNINGS",
 		"WIN32_LEAN_AND_MEAN",
-		"RMT_ENABLED=0",
+		"RMT_ENABLED=1",
 		"CP_USE_DOUBLES=0",
 	}
 
@@ -257,7 +257,10 @@ project "jammy"
 		}
 
 	filter { "platforms:Linux64" }
-		buildoptions { "-Wfatal-errors" }
+		buildoptions { 
+			"-Wfatal-errors",
+			"-Wno-incompatible-pointer-types",
+		}
 		links {
 			"lua",
 			"chipmunk",
@@ -266,4 +269,5 @@ project "jammy"
 			"GL",
 			"GLEW",
 			"m",
+			"pthread",
 		}

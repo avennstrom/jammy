@@ -49,3 +49,7 @@ jm_buffer_resource jm_renderer_get_dynamic_index_buffer();
 
 void jm_renderer_set_shader_program(
 	jm_shader_program shaderProgram);
+
+GLuint jm_renderer_get_uniform_location(
+	jm_shader_program shaderProgram,
+	const GLchar* name);

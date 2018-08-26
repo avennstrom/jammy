@@ -6,6 +6,7 @@
 #include <jammy/renderer.h>
 
 #include <float.h>
+#include <memory.h>
 
 #if defined(_MSC_VER)
 #define __always_inline __forceinline
@@ -62,14 +63,15 @@ JM_DECLARE_RENDER_COMMAND(jm_render_command_draw)
 {
 	jm_vertex* vertices;
 	jm_texcoord* texcoords;
-	uint32_t vertexCount;
 	void* indices;
-	uint32_t indexCount;
-	jm_primitive_topology topology;
-	jm_fill_mode fillMode;
+	uint16_t vertexCount;
+	uint16_t indexCount;
 	jm_texture_handle textureHandle;
 	uint32_t color;
-	jm_sampler_state samplerState;
+	uint8_t topology : 3;
+	uint8_t fillMode : 1;
+	uint8_t samplerState : 4;
+	float transform[16];
 };
 
 __always_inline void jm_render_command_draw_init(
@@ -85,4 +87,9 @@ __always_inline void jm_render_command_draw_init(
 	cmd->textureHandle = JM_TEXTURE_HANDLE_INVALID;
 	cmd->color = 0xffffffff;
 	cmd->samplerState = JM_SAMPLER_STATE_POINT;
+	memset(cmd->transform, 0, sizeof(cmd->transform));
+	cmd->transform[0] = 1.0f;
+	cmd->transform[5] = 1.0f;
+	cmd->transform[10] = 1.0f;
+	cmd->transform[15] = 1.0f;
 }

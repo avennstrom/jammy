@@ -158,7 +158,7 @@ void __jm_render_command_draw(
 	jm_renderer_set_shader_program(shaderProgram);
 
 	// set blend state
-    glDepthFunc(GL_ALWAYS);
+    glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
 	if (isSemitransparent)
 	{
@@ -173,29 +173,14 @@ void __jm_render_command_draw(
         glDepthMask(GL_TRUE);
     }
 
-	//ID3D11Buffer* const vscb[] = {
-	//	jm_renderer_get_constant_buffer(JM_CONSTANT_BUFFER_PER_VIEW_VS)
-	//};
-	//ID3D11Buffer* const pscb[] = {
-	//	jm_renderer_get_constant_buffer(JM_CONSTANT_BUFFER_PER_INSTANCE_PS)
-	//};
+	// update uniforms
+	const GLuint colorUniformLocation = jm_renderer_get_uniform_location(shaderProgram, "g_color");
+	const GLuint matWorldViewProjLocation = jm_renderer_get_uniform_location(shaderProgram, "g_matWorldViewProj");
 
-	// update constants
-	//if (SUCCEEDED(ctx->d3dctx->lpVtbl->Map(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
-	//{
-	//	typedef struct constants
-	//	{
-	//		float r, g, b, a;
-	//	} constants;
-	//	constants* cb = (constants*)ms.pData;
-	//	jm_unpack_color32_rgba_f32(cmd->color, &cb->r, &cb->g, &cb->b, &cb->a);
-    //
-	//	ctx->d3dctx->lpVtbl->Unmap(ctx->d3dctx, (ID3D11Resource*)pscb[0], 0);
-	//}
-
-	// bind constant buffers
-	//ctx->d3dctx->lpVtbl->VSSetConstantBuffers(ctx->d3dctx, 0, _countof(vscb), vscb);
-	//ctx->d3dctx->lpVtbl->PSSetConstantBuffers(ctx->d3dctx, 0, _countof(pscb), pscb);
+	float r, g, b, a;
+	jm_unpack_color32_rgba_f32(cmd->color, &r, &g, &b, &a);
+	glUniform4f(colorUniformLocation, r, g, b, a);
+	glUniformMatrix4fv(matWorldViewProjLocation, 1, GL_FALSE, cmd->transform);
 
 	// set positions
     glEnableVertexAttribArray(0);
@@ -233,6 +218,8 @@ void __jm_render_command_draw(
 
 		const GLenum indexFormat = GL_UNSIGNED_SHORT;
 
+		//glEnable(GL_PRIMITIVE_RESTART);
+		//glPrimitiveRestartIndex(0xffff);
         glDrawElements(drawMode, cmd->indexCount, indexFormat, (const void*)(size_t)indexBufferOffset);
 	}
 	else

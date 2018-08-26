@@ -6,7 +6,5 @@ in vec2 vertexPos;
 
 void main()
 {
-    gl_Position.xy = vertexPos;
-    gl_Position.z = 0.0;
-    gl_Position.w = 1.0;
+    gl_Position = g_matWorldViewProj * vec4(vertexPos, 0, 1);
 }
