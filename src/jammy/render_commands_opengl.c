@@ -76,8 +76,6 @@ void __jm_render_command_draw_text(
     glUnmapBuffer(GL_ARRAY_BUFFER);
     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
-    
-
     glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_SHORT, (const void*)(size_t)indexBufferOffset);
 }
 
