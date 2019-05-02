@@ -169,8 +169,8 @@ project "jammy"
 		}
 
 	filter { "files:**.hlsl" }
-		local fxc = '"C:/Program Files (x86)/Windows Kits/10/bin/x64/fxc.exe"'
-		local bin2h = '%{sln.location}/utils/bin2h.exe'
+		local fxc = 'fxc.exe'
+		local bin2h = '"%{sln.location}/utils/bin2h.exe"'
 		local vsPath = '%{cfg.objdir}/shader_%{file.basename}_vs.bin'
 		local psPath = '%{cfg.objdir}/shader_%{file.basename}_ps.bin'
 		local embedVsPath = '%{prj.location}/jammy/shaders/dx11/%{file.basename}.vs.h'
