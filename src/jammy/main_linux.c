@@ -254,16 +254,6 @@ int main()
 
     glxewInit();
 
-    const char* extensions = glXQueryExtensionsString(display, screenId);
-    for (const char* extension = extensions; extension != NULL; extension = strchr(extension + 1, ' '))
-    {
-        char ext[128];
-        const char* end = strchr(extension + 1, ' ');
-        size_t len = end - extension;
-        strncpy(ext, extension + 1, len);
-        printf("%s\n", ext);
-    }
-
     if (glXSwapIntervalEXT)
     {
         glXSwapIntervalEXT(display, window, vsync);
@@ -283,14 +273,6 @@ int main()
     printf("GL Renderer: %s\n", glGetString(GL_RENDERER));
     printf("GL Version: %s\n", glGetString(GL_VERSION));
     printf("GL Shading Language: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-    /*GLint extensionCount;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
-    printf("GL Extension Count: %d\n", extensionCount);
-    for (GLint i = 0; i < extensionCount; ++i)
-    {
-        printf("%s\n", glGetStringi(GL_EXTENSIONS, i));
-    }*/
 
     if (jm_renderer_init())
 	{
