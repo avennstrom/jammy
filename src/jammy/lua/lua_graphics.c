@@ -32,7 +32,7 @@ static jm_lua_texture* lua_pushTexture(lua_State* L)
 	return texture;
 }
 
-static jm_lua_texture* lua_toFoo(lua_State* L, int index)
+static jm_lua_texture* lua_toTexture(lua_State* L, int index)
 {
 	jm_lua_texture* texture = (jm_lua_texture*)lua_touserdata(L, index);
 	if (texture == NULL) luaL_typerror(L, index, "Texture");

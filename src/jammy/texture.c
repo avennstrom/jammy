@@ -225,7 +225,8 @@ jm_texture_handle jm_load_texture(
 void jm_destroy_texture(
 	jm_texture_handle textureHandle)
 {
-	jm_renderer_destroy_texture_resource(g_textures.resources[textureHandle]);
+	// Can't do this here. Have to defer this somehow. 
+	//jm_renderer_destroy_texture_resource(g_textures.resources[textureHandle]);
 }
 
 void jm_texture_reload(
