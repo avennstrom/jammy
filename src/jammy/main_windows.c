@@ -101,20 +101,7 @@ int main(int argc, char** argv)
 	rmt_CreateGlobalInstance(&rmt);
 	rmt_SetCurrentThreadName("Gameplay");
 
-	const uint32_t width = 192 * 4;
-	const uint32_t height = 192 * 4;
-	const uint32_t pixelScale = 1;
-
 	lua_State* L = luaL_newstate();
-
-	lua_newtable(L);
-	lua_pushliteral(L, "width");
-	lua_pushinteger(L, width);
-	lua_settable(L, -3);
-	lua_pushliteral(L, "height");
-	lua_pushinteger(L, height);
-	lua_settable(L, -3);
-	lua_setglobal(L, "jam");
 
 	jm_command_buffer commandBuffers[2];
 	jm_command_buffer_init(&commandBuffers[0], COMMAND_BUFFER_SIZE, MAX_RENDER_COMMANDS);
@@ -175,20 +162,74 @@ int main(int argc, char** argv)
 	lua_getglobal(L, "draw");
 	const int fnDraw = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	// get game name
-	char gameName[64];
+	static const char defaultGameName[] = "jammy";
+	char* gameName;
+    uint32_t width;
+    uint32_t height;
+	uint32_t pixelScale = 1;
+    int vsync = true;
+
 	lua_getglobal(L, "jam");
-	lua_pushliteral(L, "name");
-	lua_gettable(L, -2);
-	if (lua_isstring(L, -1))
-	{
-		strcpy(gameName, lua_tostring(L, -1));
-	}
-	else
-	{
-		strcpy(gameName, "jammy");
-	}
-	lua_pop(L, 2);
+    {
+        // get game name
+        lua_pushliteral(L, "name");
+        lua_gettable(L, -2);
+        if (lua_isstring(L, -1))
+        {
+            gameName = malloc(strlen(lua_tostring(L, -1)) + 1);
+            strcpy(gameName, lua_tostring(L, -1));
+        }
+        else
+        {
+            gameName = malloc(strlen(defaultGameName) + 1);
+            strcpy(gameName, defaultGameName);
+        }
+        lua_pop(L, 1);
+        // get dimensions
+        lua_pushliteral(L, "graphics");
+        lua_gettable(L, -2);
+        {
+            lua_pushliteral(L, "width");
+            lua_gettable(L, -2);
+            if (!lua_isnumber(L, -1))
+            {
+                fprintf(stderr, "please specify the game's resolution by setting jam.graphics.width and jam.graphics.height\n");
+                exit(1);
+            }
+            width = (uint32_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "height");
+            lua_gettable(L, -2);
+            if (!lua_isnumber(L, -1))
+            {
+                fprintf(stderr, "please specify the game's resolution by setting jam.graphics.width and jam.graphics.height\n");
+                exit(1);
+            }
+            height = (uint32_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "pixelScale");
+            lua_gettable(L, -2);
+            if (lua_isnumber(L, -1))
+            {
+                pixelScale = (uint32_t)lua_tointeger(L, -1);
+            }
+            lua_pop(L, 1);
+
+            lua_pushliteral(L, "vsync");
+            lua_gettable(L, -2);
+            if (lua_isboolean(L, -1))
+            {
+                vsync = lua_toboolean(L, -1);
+            }
+            lua_pop(L, 1);
+
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+    }
 
 	WNDCLASS wc;
 	ZeroMemory(&wc, sizeof(wc));

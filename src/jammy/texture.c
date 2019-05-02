@@ -222,6 +222,12 @@ jm_texture_handle jm_load_texture(
 	return textureHandle;
 }
 
+void jm_destroy_texture(
+	jm_texture_handle textureHandle)
+{
+	jm_renderer_destroy_texture_resource(g_textures.resources[textureHandle]);
+}
+
 void jm_texture_reload(
 	const char* path)
 {

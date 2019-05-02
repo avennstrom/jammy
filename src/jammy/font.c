@@ -234,8 +234,8 @@ void jm_font_get_text_vertices(
 	uint32_t rangeStart,
 	uint32_t rangeEnd,
 	float textScale,
-	jm_vertex* dstPosition,
-	jm_texcoord* dstTexcoord,
+	float* dstPosition,
+	float* dstTexcoord,
 	uint16_t* dstIndex,
 	uint32_t* outIndexCount)
 {
@@ -287,23 +287,23 @@ void jm_font_get_text_vertices(
 			const float w = glyph->width * textScale;
 			const float h = glyph->height * textScale;
 
-			dstPosition[0].x = x;
-			dstPosition[0].y = y;
-			dstPosition[1].x = x + w;
-			dstPosition[1].y = y;
-			dstPosition[2].x = x;
-			dstPosition[2].y = y + h;
-			dstPosition[3].x = x + w;
-			dstPosition[3].y = y + h;
+			dstPosition[0] = x;
+			dstPosition[1] = y;
+			dstPosition[2] = x + w;
+			dstPosition[3] = y;
+			dstPosition[4] = x;
+			dstPosition[5] = y + h;
+			dstPosition[6] = x + w;
+			dstPosition[7] = y + h;
 
-			dstTexcoord[0].u = glyph->u0;
-			dstTexcoord[0].v = glyph->v0;
-			dstTexcoord[1].u = glyph->u1;
-			dstTexcoord[1].v = glyph->v0;
-			dstTexcoord[2].u = glyph->u0;
-			dstTexcoord[2].v = glyph->v1;
-			dstTexcoord[3].u = glyph->u1;
-			dstTexcoord[3].v = glyph->v1;
+			dstTexcoord[0] = glyph->u0;
+			dstTexcoord[1] = glyph->v0;
+			dstTexcoord[2] = glyph->u1;
+			dstTexcoord[3] = glyph->v0;
+			dstTexcoord[4] = glyph->u0;
+			dstTexcoord[5] = glyph->v1;
+			dstTexcoord[6] = glyph->u1;
+			dstTexcoord[7] = glyph->v1;
 
 			dstIndex[0] = dstI + 0;
 			dstIndex[1] = dstI + 1;
@@ -312,8 +312,8 @@ void jm_font_get_text_vertices(
 			dstIndex[4] = UINT16_MAX;
 
 			dstI += 4;
-			dstPosition += 4;
-			dstTexcoord += 4;
+			dstPosition += 8;
+			dstTexcoord += 8;
 			dstIndex += 5;
 			indexCount += 5;
 		}

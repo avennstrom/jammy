@@ -5,6 +5,12 @@
 int jm_renderer_init();
 
 #if defined(JM_WINDOWS)
+#define JM_RENDERER_DX11
+#elif defined(JM_LINUX)
+#define JM_RENDERER_OPENGL
+#endif
+
+#if defined(JM_RENDERER_DX11)
 int jm_create_swapchain(
 	HWND hwnd, 
 	uint32_t width,
@@ -25,7 +31,10 @@ void jm_renderer_create_texture_resource(
 	const jm_texture_resource_desc* desc,
 	jm_texture_resource* resource);
 
-#if defined(JM_WINDOWS)
+void jm_renderer_destroy_texture_resource(
+	jm_texture_resource resource);
+
+#if defined(JM_RENDERER_DX11)
 ID3D11Device* jm_renderer_get_device();
 
 ID3D11DeviceContext* jm_renderer_get_context();
@@ -50,6 +59,8 @@ jm_buffer_resource jm_renderer_get_dynamic_index_buffer();
 void jm_renderer_set_shader_program(
 	jm_shader_program shaderProgram);
 
+#if defined(JM_RENDERER_OPENGL)
 GLuint jm_renderer_get_uniform_location(
 	jm_shader_program shaderProgram,
 	const GLchar* name);
+#endif

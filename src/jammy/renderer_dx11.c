@@ -401,4 +401,10 @@ void jm_renderer_create_texture_resource(
 	texture->lpVtbl->SetPrivateData(texture, &WKPDID_D3DDebugObjectName, (UINT)strlen(desc->name), desc->name);
 #endif
 }
+
+void jm_renderer_destroy_texture_resource(
+	jm_texture_resource resource)
+{
+	resource->lpVtbl->Release(resource);
+}
 #endif

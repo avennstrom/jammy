@@ -3,6 +3,8 @@
 
 #if defined(JM_LINUX)
 #include <X11/keysym.h>
+#elif defined(JM_WINDOWS)
+#include <Windows.h>
 #endif
 
 void jm_luaopen_input(lua_State* L)
@@ -77,6 +79,65 @@ void jm_luaopen_input(lua_State* L)
 	SETKEY(X, XK_x);
 	SETKEY(Y, XK_y);
 	SETKEY(Z, XK_z);
+#elif defined(JM_WINDOWS)
+	SETKEY(Return, VK_RETURN);
+	SETKEY(Backspace, VK_BACK);
+
+	SETKEY(Escape, VK_ESCAPE);
+	SETKEY(Tab, VK_TAB);
+	//SETKEY(CapsLock, XK_Caps_Lock);
+
+	SETKEY(LeftShift, VK_LSHIFT);
+	SETKEY(RightShift, VK_RSHIFT);
+	SETKEY(LeftControl, VK_LCONTROL);
+	SETKEY(RightControl, VK_RCONTROL);
+	SETKEY(LeftAlt, VK_MENU);
+	//SETKEY(RightAlt, XK_Alt_R);
+
+	SETKEY(LeftArrow, VK_LEFT);
+	SETKEY(RightArrow, VK_RIGHT);
+	SETKEY(UpArrow, VK_UP);
+	SETKEY(DownArrow, VK_DOWN);
+
+	SETKEY(F1, VK_F1);
+	SETKEY(F2, VK_F2);
+	SETKEY(F3, VK_F3);
+	SETKEY(F4, VK_F4);
+	SETKEY(F5, VK_F5);
+	SETKEY(F6, VK_F6);
+	SETKEY(F7, VK_F7);
+	SETKEY(F8, VK_F8);
+	SETKEY(F9, VK_F9);
+	SETKEY(F10, VK_F10);
+	SETKEY(F11, VK_F11);
+	SETKEY(F12, VK_F12);
+
+	SETKEY(A, 'a');
+	SETKEY(B, 'b');
+	SETKEY(C, 'c');
+	SETKEY(D, 'd');
+	SETKEY(E, 'e');
+	SETKEY(F, 'f');
+	SETKEY(G, 'g');
+	SETKEY(H, 'h');
+	SETKEY(I, 'i');
+	SETKEY(J, 'j');
+	SETKEY(K, 'k');
+	SETKEY(L, 'l');
+	SETKEY(M, 'm');
+	SETKEY(N, 'n');
+	SETKEY(O, 'o');
+	SETKEY(P, 'p');
+	SETKEY(Q, 'q');
+	SETKEY(R, 'r');
+	SETKEY(S, 's');
+	SETKEY(T, 't');
+	SETKEY(U, 'u');
+	SETKEY(V, 'v');
+	SETKEY(W, 'w');
+	SETKEY(X, 'x');
+	SETKEY(Y, 'y');
+	SETKEY(Z, 'z');
 #endif
     
 

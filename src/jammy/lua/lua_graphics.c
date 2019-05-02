@@ -11,6 +11,47 @@
 
 #include <string.h>
 
+typedef struct jm_lua_texture
+{
+	jm_texture_handle handle;
+} jm_lua_texture;
+
+static jm_lua_texture* lua_checkTexture(lua_State* L, int index)
+{
+	luaL_checktype(L, index, LUA_TUSERDATA);
+	jm_lua_texture* texture = (jm_lua_texture*)luaL_checkudata(L, index, "Texture");
+	if (texture == NULL) luaL_typerror(L, index, "Texture");
+	return texture;
+}
+
+static jm_lua_texture* lua_pushTexture(lua_State* L)
+{
+	jm_lua_texture* texture = (jm_lua_texture*)lua_newuserdata(L, sizeof(jm_lua_texture));
+	luaL_getmetatable(L, "Texture");
+	lua_setmetatable(L, -2);
+	return texture;
+}
+
+static jm_lua_texture* lua_toFoo(lua_State* L, int index)
+{
+	jm_lua_texture* texture = (jm_lua_texture*)lua_touserdata(L, index);
+	if (texture == NULL) luaL_typerror(L, index, "Texture");
+	return texture;
+}
+
+static bool lua_isTexture(lua_State* L, int index)
+{
+	jm_lua_texture* texture = (jm_lua_texture*)luaL_checkudata(L, index, "Texture");
+	return (texture != NULL);
+}
+
+static int lua_Texture___gc(lua_State* L)
+{
+	jm_lua_texture* texture = lua_checkTexture(L, 1);
+	jm_destroy_texture(texture->handle);
+	return 0;
+}
+
 static float g_cameraTransform[16];
 
 static int __drawText(lua_State* L)
@@ -261,7 +302,7 @@ static int __draw(lua_State* L)
 		{
 			luaL_argerror(L, 1, "the 'topology' parameter must be an integer");
 		}
-		cmd->topology = lua_tointeger(L, -1);
+		cmd->topology = (uint8_t)lua_tointeger(L, -1);
 	}
 	lua_pop(L, 1);
 
@@ -297,12 +338,13 @@ static int __draw(lua_State* L)
 	lua_gettable(L, 1);
 	if (!lua_isnil(L, -1))
 	{
-		if (!lua_isnumber(L, -1))
+		if (!lua_isTexture(L, -1))
 		{
 			luaL_argerror(L, 1, "the 'texture' parameter must be an integer");
 		}
 
-		cmd->textureHandle = (jm_texture_handle)lua_tointeger(L, -1);
+		jm_lua_texture* texture = (jm_lua_texture*)lua_checkTexture(L, -1);
+		cmd->textureHandle = texture->handle;
 	}
 	lua_pop(L, 1);
 
@@ -328,9 +370,18 @@ static int __draw(lua_State* L)
 
 static int __loadTexture(lua_State* L)
 {
-	const char* path = lua_tostring(L, 1);
+	const char* path = luaL_checkstring(L, 1);
 	const jm_texture_handle textureHandle = jm_load_texture(path);
-	lua_pushinteger(L, textureHandle);
+	if (textureHandle == JM_TEXTURE_HANDLE_INVALID)
+	{
+		lua_pushnil(L);
+	}
+	else
+	{
+		jm_lua_texture* texture = lua_pushTexture(L);
+		texture->handle = textureHandle;
+	}
+
 	return 1;
 }
 
@@ -361,8 +412,8 @@ static int __instantiateEffect(lua_State* L)
 
 static int __setCamera(lua_State* L)
 {
-	const float width = luaL_checkinteger(L, 1);
-	const float height = luaL_checkinteger(L, 2);
+	const float width = (float)luaL_checkinteger(L, 1);
+	const float height = (float)luaL_checkinteger(L, 2);
 
 	const float halfWidth = width / 2.0f;
 	const float halfHeight = height / 2.0f;
@@ -440,6 +491,22 @@ void jm_luaopen_graphics(
 	lua_settable(L, -3);
 
 	lua_settable(L, -3);
+
+	luaL_newmetatable(L, "Texture");          /* create metatable for Foo,
+										and add it to the Lua registry */
+	
+	lua_pushliteral(L, "__gc");
+	lua_pushcfunction(L, lua_Texture___gc);
+	lua_rawset(L, -3);
+
+	lua_pushliteral(L, "__index");
+	lua_pushvalue(L, -3);               /* dup methods table*/
+	lua_rawset(L, -3);                  /* metatable.__index = methods */
+	lua_pushliteral(L, "__metatable");
+	lua_pushvalue(L, -3);               /* dup methods table*/
+	lua_rawset(L, -3);                  /* hide metatable:
+										metatable.__metatable = methods */
+	lua_pop(L, 1);
 
 	lua_pushliteral(L, "graphics");
 	lua_pushvalue(L, -2);

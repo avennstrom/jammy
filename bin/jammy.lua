@@ -1,6 +1,8 @@
 require('sprite_sheet')
 require('levels')
 
+jam.name = "Moon Destroyer"
+
 jam.graphics.width = 64
 jam.graphics.height = 64
 jam.graphics.pixelScale = 8
@@ -29,6 +31,8 @@ end
 function respawnPlayer()
     player = {
         isDead = false,
+        --isCharged = false,
+		isCharged = true,
         t = 1,
         x = currentLevel.spawnX,
         y = currentLevel.spawnY,
@@ -120,6 +124,8 @@ function tick()
             destroyMoon()
             resetInput()
             return
+        elseif tile == tile_pickup then
+            player.isCharged = true
         end
         
         player.vx = xInput
@@ -149,7 +155,6 @@ function draw()
     jam.graphics.setCamera(jam.graphics.width, jam.graphics.height)
 
     if not currentLevel then
-
         return
     end
 
@@ -165,7 +170,11 @@ function draw()
         else
             local playerX = math.lerp(player.x, player.x1, player.t) * tileSize
             local playerY = math.lerp(player.y, player.y1, player.t) * tileSize
-            spriteSheet:append(playerX, playerY, tileSize, tileSize, 0, 2)
+            local row = 2
+            --if player.isCharged then
+            --    row = 3
+            --end
+            spriteSheet:append(playerX, playerY, tileSize, tileSize, 0, row)
         end
     end
 
@@ -182,6 +191,8 @@ function draw()
             else
                 spriteSheet:append(x, y, tileSize, tileSize, 0, 1)
             end
+        elseif tile == tile_pickup and not player.isCharged then
+            spriteSheet:append(x, y, tileSize, tileSize, 7 + math.floor(jam.elapsedTime * 10 % 3), 2)
         end
     end
     spriteSheet:draw()

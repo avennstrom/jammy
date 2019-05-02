@@ -21,6 +21,9 @@ int jm_textures_init();
 jm_texture_handle jm_load_texture(
 	const char* path);
 
+void jm_destroy_texture(
+	jm_texture_handle textureHandle);
+
 void jm_texture_reload(
 	const char* path);
 

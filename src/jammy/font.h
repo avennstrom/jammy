@@ -55,7 +55,7 @@ void jm_font_get_text_vertices(
 	uint32_t rangeStart,
 	uint32_t rangeEnd,
 	float textScale,
-	jm_vertex* dstPosition,
-	jm_texcoord* dstTexcoord,
+	float* dstPosition,
+	float* dstTexcoord,
 	uint16_t* dstIndex,
 	uint32_t* outIndexCount);

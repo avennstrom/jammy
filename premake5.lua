@@ -1,5 +1,5 @@
-freetype_include = "/usr/local/include/freetype2"
-freetype_libdir = "/usr/local/lib"
+freetype_include = "C:\\Users\\Andreas\\Documents\\GitHub\\freetype2\\include"
+freetype_libdir = "C:\\Users\\Andreas\\Documents\\cmake\\freetype2\\Release"
 freetype_libdir_debug = freetype_libdir
 freetype_lib = "freetype"
 freetype_lib_debug = freetype_lib
@@ -135,7 +135,7 @@ project "jammy"
 		"LUA_FLOAT_TYPE=LUA_FLOAT_FLOAT",
 		"_CRT_SECURE_NO_WARNINGS",
 		"WIN32_LEAN_AND_MEAN",
-		"RMT_ENABLED=1",
+		"RMT_ENABLED=0",
 		"CP_USE_DOUBLES=0",
 	}
 
@@ -158,6 +158,9 @@ project "jammy"
 		files {
 			"%{prj.location}/jammy/**.hlsl",
 		}
+
+	filter { "platforms:Win64", "configurations:Debug" }
+		linkoptions "/NODEFAULTLIB:MSVCRT"
 
 	filter { "platforms:Linux64" }
 		files {

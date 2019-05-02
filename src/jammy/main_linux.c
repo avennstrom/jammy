@@ -120,7 +120,6 @@ int main()
 	const int fnDraw = luaL_ref(L, LUA_REGISTRYINDEX);
 
     static const char defaultGameName[] = "jammy";
-
     char* gameName;
     uint32_t width;
     uint32_t height;

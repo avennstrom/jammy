@@ -73,8 +73,8 @@ void __jm_render_command_draw_text(
 		cmd->rangeStart,
 		cmd->rangeEnd,
 		cmd->scale,
-		dstPosition,
-		dstTexcoord,
+		(float*)dstPosition,
+		(float*)dstTexcoord,
 		(uint16_t*)dstIndices,
 		&indexCount);
 
