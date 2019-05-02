@@ -3,7 +3,7 @@
 #include <jammy/file.h>
 #include <jammy/renderer.h>
 #include <jammy/audio.h>
-#include <jammy/physics.h>
+//#include <jammy/physics.h>
 #include <jammy/build.h>
 #include <jammy/assert.h>
 #include <jammy/player_controller.h>
@@ -16,6 +16,7 @@
 
 #include <X11/Xlib.h>
 #include <GL/glew.h>
+#include <GL/glxew.h>
 #include <GL/glx.h>
 
 #include <stdio.h>
@@ -85,11 +86,11 @@ int main()
 		return 1;
 	}
 
-	if (jm_physics_init())
+	/*if (jm_physics_init())
 	{
 		fprintf(stderr, "jm_physics_init failed");
 		return 1;
-	}
+	}*/
 
 	// setup lua state
 	luaL_openlibs(L);
@@ -251,8 +252,18 @@ int main()
     GLXContext context = glXCreateContext(display, visual, NULL, GL_TRUE);
     glXMakeCurrent(display, window, context);
 
-    PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = glXGetProcAddress("glXSwapIntervalEXT");
-    PFNGLXSWAPINTERVALMESAPROC glXSwapIntervalMESA = glXGetProcAddress("glXSwapIntervalMESA");
+    glxewInit();
+
+    const char* extensions = glXQueryExtensionsString(display, screenId);
+    for (const char* extension = extensions; extension != NULL; extension = strchr(extension + 1, ' '))
+    {
+        char ext[128];
+        const char* end = strchr(extension + 1, ' ');
+        size_t len = end - extension;
+        strncpy(ext, extension + 1, len);
+        printf("%s\n", ext);
+    }
+
     if (glXSwapIntervalEXT)
     {
         glXSwapIntervalEXT(display, window, vsync);
@@ -261,6 +272,10 @@ int main()
     {
         glXSwapIntervalMESA(vsync);
     }
+    else if (glXSwapIntervalSGI)
+    {
+        glXSwapIntervalSGI(vsync);
+    }
 
     glewInit();
 
@@ -268,6 +283,14 @@ int main()
     printf("GL Renderer: %s\n", glGetString(GL_RENDERER));
     printf("GL Version: %s\n", glGetString(GL_VERSION));
     printf("GL Shading Language: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+    /*GLint extensionCount;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+    printf("GL Extension Count: %d\n", extensionCount);
+    for (GLint i = 0; i < extensionCount; ++i)
+    {
+        printf("%s\n", glGetStringi(GL_EXTENSIONS, i));
+    }*/
 
     if (jm_renderer_init())
 	{
@@ -377,7 +400,7 @@ int main()
 			tickTimer -= TICK_RATE;
 
             // tick physics
-            jm_physics_tick(TICK_RATE);
+            //jm_physics_tick(TICK_RATE);
 
             // tick game
             rmt_BeginCPUSample(lua_tick, 0);
