@@ -31,15 +31,12 @@ end
 function respawnPlayer()
     player = {
         isDead = false,
-        --isCharged = false,
-		isCharged = true,
+        isCharged = false,
         t = 1,
         x = currentLevel.spawnX,
         y = currentLevel.spawnY,
         x1 = currentLevel.spawnX,
         y1 = currentLevel.spawnY,
-        vx = 0,
-        vy = 0,
     }
 end
 
@@ -92,6 +89,7 @@ function tick()
         return
     end
 
+    -- moon explosion
     if isMoonDestroyed then
         moonDestroyTimer = moonDestroyTimer + jam.deltaTime * 10
         if moonDestroyTimer >= 19 then
@@ -100,6 +98,7 @@ function tick()
         return
     end
 
+    -- player explosion
     if player.isDead then
         player.deathTimer = player.deathTimer + jam.deltaTime * 10
         if player.deathTimer >= 6 then
@@ -128,11 +127,8 @@ function tick()
             player.isCharged = true
         end
         
-        player.vx = xInput
-        player.vy = yInput
-
-        player.x1 = player.x1 + player.vx
-        player.y1 = player.y1 + player.vy
+        player.x1 = player.x1 + xInput
+        player.y1 = player.y1 + yInput
 
         local nextTile = getTile(currentLevel, player.x1, player.y1)
 
@@ -162,29 +158,35 @@ function draw()
 
     spriteSheet:begin()
 
+    -- draw player
     if not isMoonDestroyed then
+        local row = 2
+        if player.isCharged then
+            row = 3
+        end
         if player.isDead then
+            -- explosion
             local playerX = player.x * tileSize
             local playerY = player.y * tileSize
-            spriteSheet:append(playerX, playerY, tileSize, tileSize, math.floor(player.deathTimer) + 1, 2)
+            spriteSheet:append(playerX, playerY, tileSize, tileSize, math.floor(player.deathTimer) + 1, row)
         else
             local playerX = math.lerp(player.x, player.x1, player.t) * tileSize
             local playerY = math.lerp(player.y, player.y1, player.t) * tileSize
-            local row = 2
-            --if player.isCharged then
-            --    row = 3
-            --end
             spriteSheet:append(playerX, playerY, tileSize, tileSize, 0, row)
         end
     end
 
+    -- draw level
     for tileIndex, tile in ipairs(currentLevel.tiles) do
         local x = ((tileIndex - 1) % tileCount) * tileSize
         local y = math.floor((tileIndex - 1) / tileCount) * tileSize
         if tile == 1 then
+            -- draw obstacle tiles
             spriteSheet:append(x, y, tileSize, tileSize, math.random(0, 6), 0)
         elseif tile == tile_moon then
+            -- draw the moon
             if isMoonDestroyed then
+                -- explosion
                 if moonDestroyTimer < 15 then
                     spriteSheet:append(x, y, tileSize, tileSize, math.floor(moonDestroyTimer) + 1, 1)
                 end
@@ -192,9 +194,11 @@ function draw()
                 spriteSheet:append(x, y, tileSize, tileSize, 0, 1)
             end
         elseif tile == tile_pickup and not player.isCharged then
+            -- draw the pickup
             spriteSheet:append(x, y, tileSize, tileSize, 7 + math.floor(jam.elapsedTime * 10 % 3), 2)
         end
     end
+
     spriteSheet:draw()
 
     -- draw background
